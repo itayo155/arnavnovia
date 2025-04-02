@@ -5,25 +5,11 @@ This document outlines the remaining tasks for the ArnavNovia token transfer app
 
 ## Completed Tasks
 - ✅ **Auto-refresh**: Implemented polling on the frontend to automatically update token balance every 5 seconds
+- ✅ **Login with Username**: Enhanced the login system to accept both username and email, with improved error handling
 
 ## Remaining Tasks
 
-### 1. Login with Username (Medium-Low Complexity)
-**Context**: Currently, the application requires email login, which is cumbersome. We want to allow users to log in with their username instead, while still maintaining the email for password reset functionality.
-
-**Plan**:
-- Review and enhance the existing `getEmailByUsername` function in `authController.ts`
-- Ensure the login flow properly handles username login
-- Update the frontend UI to make it clear that users can log in with a username
-- Add improved error handling and validation for both username and email login methods
-- Test the login flow with various scenarios
-
-**Files to modify**:
-- `backend/src/controllers/authController.ts`
-- `arnavnovia-front/HTML/index.html`
-- `arnavnovia-front/HTML/js/api.js`
-
-### 2. Events Area (Medium Complexity)
+### 1. Events Area (Medium Complexity)
 **Context**: We need to display a transaction history so users can see recent token transfers. The Supabase database already has a "transactions" table, but we're not currently writing to it.
 
 **Plan**:
@@ -49,7 +35,7 @@ This document outlines the remaining tasks for the ArnavNovia token transfer app
   - amount
   - created_at
 
-### 3. Make the HTML Pages Nicer (Medium Complexity)
+### 2. Make the HTML Pages Nicer (Medium Complexity)
 **Context**: The current UI is functional but can be improved for better user experience.
 
 **Plan**:
@@ -66,7 +52,7 @@ This document outlines the remaining tasks for the ArnavNovia token transfer app
 - `arnavnovia-front/HTML/reset-password.html`
 - Consider creating a separate CSS file instead of using inline styles
 
-### 4. Management Page (High Complexity)
+### 3. Management Page (High Complexity)
 **Context**: We need an admin panel that allows administrators to manage users and tokens.
 
 **Plan**:
