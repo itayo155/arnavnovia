@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Transfer - Login</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('../images/Musical-Bunny-iPhone-Wallpaper-HD.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .login-container {
+            background-color: rgba(255, 255, 255, 0.85);
+            padding: 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            margin-bottom: 30px;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 20px;
+            text-align: right;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            direction: rtl;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            transition: background-color 0.3s;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        button:hover:not(:disabled) {
+            background-color: #45a049;
+        }
+        .error-message {
+            color: #f44336;
+            margin-top: 20px;
+            display: none;
+        }
+        .forgot-password {
+            margin-top: 15px;
+            text-align: center;
+        }
+        .forgot-password a {
+            color: #2196F3;
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .forgot-password a:hover {
+            text-decoration: underline;
+        }
+        .reset-container {
+            display: none;
+            margin-top: 20px;
+        }
+        .reset-message {
+            color: #4CAF50;
+            margin-top: 15px;
+            display: none;
+        }
+        .back-to-login {
+            color: #2196F3;
+            cursor: pointer;
+            margin-top: 15px;
+            display: inline-block;
+        }
+        .back-to-login:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <!-- Login Form -->
+        <div id="login-form">
+            <h1>התחברות</h1>
+            <div class="form-group">
+                <label for="username_input">שם משתמש או אימייל</label>
+                <input type="text" name="username" id="username_input" placeholder="הכנס שם משתמש או אימייל" onkeyup="check()">
+            </div>
+            <div class="form-group">
+                <label for="password_input">סיסמא</label>
+                <input type="password" name="password" id="password_input" placeholder="הכנס סיסמא" onkeyup="check()">
+            </div>
+            <button type="submit" id="ok_button" disabled onclick="loginUser()">התחברות</button>
+            <div id="error_message" class="error-message"></div>
+            <div class="forgot-password">
+                <a href="#" onclick="showResetForm(); return false;">שכחת סיסמא?</a>
+            </div>
+        </div>
+        
+        <!-- Password Reset Form -->
+        <div id="reset-form" class="reset-container">
+            <h1>איפוס סיסמא</h1>
+            <div class="form-group">
+                <label for="reset_email">כתובת אימייל</label>
+                <input type="email" id="reset_email" placeholder="הכנס כתובת אימייל" required>
+            </div>
+            <button type="button" id="reset_button" onclick="resetPassword()">שלח הוראות איפוס</button>
+            <div id="reset_error" class="error-message"></div>
+            <div id="reset_success" class="reset-message">הוראות לאיפוס הסיסמה נשלחו לכתובת האימייל שלך.</div>
+            <div class="back-to-login" onclick="showLoginForm()">חזור להתחברות</div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/api.js"></script>
+    <script>
+        // Check if fields are filled
+        function check() {
+            var username = document.getElementById('username_input').value;
+            var password = document.getElementById('password_input').value;
+
+            document.getElementById('ok_button').disabled = username === "" || password === "";
+        }
+        
+        // Check if user is already logged in, redirect if so
+        function checkLoggedIn() {
+            if (api.auth.isLoggedIn()) {
+                window.location.href = 'dashboard.html';
+            }
+        }
+        
+        // Handle login
+        async function loginUser() {
+            const usernameOrEmail = document.getElementById('username_input').value;
+            const password = document.getElementById('password_input').value;
+            const errorElement = document.getElementById('error_message');
+            const button = document.getElementById('ok_button');
+            
+            // Disable button during login
+            button.disabled = true;
+            button.textContent = 'מתחבר...';
+            errorElement.style.display = 'none';
+            
+            try {
+                const result = await api.auth.login(usernameOrEmail, password);
+                
+                if (result.error) {
+                    errorElement.textContent = result.error;
+                    errorElement.style.display = 'block';
+                } else {
+                    // Redirect to dashboard on success
+                    window.location.href = 'dashboard.html';
+                }
+            } catch (err) {
+                errorElement.textContent = err.message || 'שגיאה בהתחברות. אנא נסה שוב.';
+                errorElement.style.display = 'block';
+            } finally {
+                button.textContent = 'התחברות';
+                button.disabled = (usernameOrEmail === "" || password === "");
+            }
+        }
+        
+        // Show password reset form
+        function showResetForm() {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('reset-form').style.display = 'block';
+            document.getElementById('reset_email').focus();
+        }
+        
+        // Show login form
+        function showLoginForm() {
+            document.getElementById('reset-form').style.display = 'none';
+            document.getElementById('login-form').style.display = 'block';
+            document.getElementById('reset_success').style.display = 'none';
+            document.getElementById('reset_error').style.display = 'none';
+            document.getElementById('reset_email').value = '';
+        }
+        
+        // Handle password reset request
+        async function resetPassword() {
+            const email = document.getElementById('reset_email').value;
+            const errorElement = document.getElementById('reset_error');
+            const successElement = document.getElementById('reset_success');
+            const button = document.getElementById('reset_button');
+            
+            // Validate email
+            if (!email || !email.includes('@')) {
+                errorElement.textContent = 'יש להזין כתובת אימייל תקינה';
+                errorElement.style.display = 'block';
+                successElement.style.display = 'none';
+                return;
+            }
+            
+            // Disable button and hide messages
+            button.disabled = true;
+            button.textContent = 'שולח...';
+            errorElement.style.display = 'none';
+            successElement.style.display = 'none';
+            
+            const result = await api.auth.resetPassword(email);
+            
+            // Reset button
+            button.disabled = false;
+            button.textContent = 'שלח הוראות איפוס';
+            
+            if (result.error) {
+                errorElement.textContent = result.error;
+                errorElement.style.display = 'block';
+            } else {
+                successElement.style.display = 'block';
+            }
+        }
+        
+        // Add event listener for Enter key
+        document.getElementById('password_input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !document.getElementById('ok_button').disabled) {
+                loginUser();
+            }
+        });
+        
+        document.getElementById('reset_email').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                resetPassword();
+            }
+        });
+        
+        // Check if already logged in on page load
+        document.addEventListener('DOMContentLoaded', checkLoggedIn);
+    </script>
+</body>
+</html>
+

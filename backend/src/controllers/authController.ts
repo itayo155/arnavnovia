@@ -84,16 +84,29 @@ export const getEmailByUsername = catchAsync(async (req: Request, res: Response)
   try {
     console.log(`Looking up email for username: ${username}`);
     
+    // If the input looks like an email, return it directly
+    if (username.includes('@')) {
+      console.log(`Input appears to be an email address: ${username}`);
+      return res.status(200).json({
+        status: 'success',
+        data: {
+          email: username,
+          isEmail: true
+        }
+      });
+    }
+    
     // Attempt to find the user
     const user = await findUserByUsername(username);
     
     // If we found the user and they have an email, return it
     if (user && user.email) {
-      console.log(`Found email for user ${username}`);
+      console.log(`Found email for user ${username}: ${user.email}`);
       return res.status(200).json({
         status: 'success',
         data: {
-          email: user.email
+          email: user.email,
+          isEmail: false
         }
       });
     }
@@ -106,11 +119,12 @@ export const getEmailByUsername = catchAsync(async (req: Request, res: Response)
     };
     
     if (knownUserMap[username]) {
-      console.log(`Using fallback email for ${username}`);
+      console.log(`Using fallback email for ${username}: ${knownUserMap[username]}`);
       return res.status(200).json({
         status: 'success',
         data: {
-          email: knownUserMap[username]
+          email: knownUserMap[username],
+          isEmail: false
         }
       });
     }

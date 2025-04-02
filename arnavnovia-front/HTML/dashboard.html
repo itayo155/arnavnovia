@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Token Transfer - Dashboard</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('../images/Musical-Bunny-iPhone-Wallpaper-HD.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .card {
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            color: #333;
+            margin: 0;
+        }
+        .logout-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .balance-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .balance {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .form-row {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .form-group {
+            flex: 1;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        button:hover:not(:disabled) {
+            background-color: #45a049;
+        }
+        .success-message, .error-message {
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            display: none;
+        }
+        .success-message {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+        .error-message {
+            background-color: #f2dede;
+            color: #a94442;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 2s linear infinite;
+            display: none;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h1>ברוך הבא, <span id="username"></span></h1>
+                <button class="logout-btn" onclick="logout()">התנתק</button>
+            </div>
+        </div>
+        
+        <div class="card balance-card">
+            <h2>מאזן הטוקנים שלך:</h2>
+            <div>
+                <span class="balance" id="token-balance">...</span>
+                <div class="loader" id="balance-loader"></div>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h2>העבר טוקנים</h2>
+            <form id="transfer-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="receiver">העבר אל:</label>
+                        <select id="receiver" required>
+                            <option value="">בחר משתמש</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="amount">כמות:</label>
+                        <input type="number" id="amount" min="1" required>
+                    </div>
+                </div>
+                <button type="submit" id="transfer-btn">העבר טוקנים</button>
+                <div class="loader" id="transfer-loader"></div>
+                <div class="success-message" id="success-message"></div>
+                <div class="error-message" id="error-message"></div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/api.js"></script>
+    <script>
+        // Variable to hold the polling interval
+        let pollingInterval;
+        // Default polling interval in milliseconds (5 seconds)
+        const POLLING_INTERVAL = 5000;
+
+        // Start polling for updates
+        function startPolling() {
+            // Clear any existing interval first
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+            }
+            
+            // Set up polling
+            pollingInterval = setInterval(async () => {
+                // Only poll if the document is visible
+                if (!document.hidden) {
+                    // Pass true to indicate this is an auto-refresh call
+                    await loadTokenBalance(true);
+                    console.log('Auto-refreshed token balance');
+                }
+            }, POLLING_INTERVAL);
+            
+            console.log('Started polling for updates');
+        }
+
+        // Stop polling
+        function stopPolling() {
+            if (pollingInterval) {
+                clearInterval(pollingInterval);
+                pollingInterval = null;
+                console.log('Stopped polling for updates');
+            }
+        }
+
+        // Load token balance
+        async function loadTokenBalance(isAutoRefresh = false) {
+            const balanceElement = document.getElementById('token-balance');
+            const loaderElement = document.getElementById('balance-loader');
+            
+            // Only hide the balance and show the loader if this is not an auto-refresh
+            if (!isAutoRefresh) {
+                balanceElement.style.display = 'none';
+                loaderElement.style.display = 'block';
+            }
+            
+            const result = await api.tokens.getBalance();
+            
+            // Always hide the loader after the request is complete
+            loaderElement.style.display = 'none';
+            
+            // Only need to set display to inline if we previously hid it
+            if (!isAutoRefresh) {
+                balanceElement.style.display = 'inline';
+            }
+            
+            if (result.success) {
+                // Update the balance only if it's different to avoid unnecessary DOM updates
+                if (balanceElement.textContent !== result.tokens.toString()) {
+                    balanceElement.textContent = result.tokens;
+                }
+            } else {
+                balanceElement.textContent = 'Error';
+            }
+        }
+        
+        // Load users for dropdown
+        async function loadUsers() {
+            const selectElement = document.getElementById('receiver');
+            const currentUser = JSON.parse(localStorage.getItem('user'));
+            
+            const result = await api.tokens.getUsers();
+            
+            if (result.success) {
+                // Sort users by username
+                const sortedUsers = result.users.sort((a, b) => 
+                    a.username.localeCompare(b.username)
+                );
+                
+                // Add users to dropdown, excluding current user
+                sortedUsers.forEach(user => {
+                    if (user.id !== currentUser.id) {
+                        const option = document.createElement('option');
+                        option.value = user.id;
+                        option.textContent = user.username;
+                        selectElement.appendChild(option);
+                    }
+                });
+            }
+        }
+
+        // Check if user is logged in
+        document.addEventListener('DOMContentLoaded', async () => {
+            // If not logged in, redirect to login page
+            if (!api.auth.isLoggedIn()) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            // Load user data from localStorage
+            const userData = JSON.parse(localStorage.getItem('user'));
+            if (userData) {
+                document.getElementById('username').textContent = userData.username;
+            }
+            
+            // Load token balance
+            await loadTokenBalance();
+            
+            // Load users for dropdown
+            await loadUsers();
+            
+            // Start polling for updates
+            startPolling();
+        });
+
+        // Handle visibility change to pause polling when tab is inactive
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                // Page is hidden, temporarily pause polling to save resources
+                if (pollingInterval) {
+                    clearInterval(pollingInterval);
+                    pollingInterval = null;
+                    console.log('Paused polling (page hidden)');
+                }
+            } else {
+                // Page is visible again, do an immediate refresh and restart polling
+                // Pass true to indicate this is an auto-refresh call
+                loadTokenBalance(true);
+                startPolling();
+                console.log('Resumed polling (page visible)');
+            }
+        });
+
+        // Clean up when leaving the page
+        window.addEventListener('beforeunload', () => {
+            stopPolling();
+        });
+        
+        // Handle token transfer form submission
+        document.getElementById('transfer-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const receiverId = document.getElementById('receiver').value;
+            const amount = document.getElementById('amount').value;
+            const transferBtn = document.getElementById('transfer-btn');
+            const loaderElement = document.getElementById('transfer-loader');
+            const successElement = document.getElementById('success-message');
+            const errorElement = document.getElementById('error-message');
+            
+            // Validate input
+            if (!receiverId || !amount || amount < 1) {
+                errorElement.textContent = 'יש לבחור משתמש ולהזין כמות תקינה';
+                errorElement.style.display = 'block';
+                successElement.style.display = 'none';
+                return;
+            }
+            
+            // Disable button and show loader
+            transferBtn.disabled = true;
+            loaderElement.style.display = 'block';
+            successElement.style.display = 'none';
+            errorElement.style.display = 'none';
+            
+            const result = await api.tokens.transfer(receiverId, amount);
+            
+            // Enable button and hide loader
+            transferBtn.disabled = false;
+            loaderElement.style.display = 'none';
+            
+            if (result.success) {
+                // Show success message
+                successElement.textContent = result.message;
+                successElement.style.display = 'block';
+                errorElement.style.display = 'none';
+                
+                // Reset form
+                document.getElementById('receiver').value = '';
+                document.getElementById('amount').value = '';
+                
+                // Update token balance
+                document.getElementById('token-balance').textContent = result.currentBalance;
+            } else {
+                // Show error message
+                errorElement.textContent = result.error;
+                errorElement.style.display = 'block';
+                successElement.style.display = 'none';
+            }
+        });
+        
+        // Logout function
+        function logout() {
+            // Stop polling before logging out
+            stopPolling();
+            api.auth.logout();
+        }
+    </script>
+</body>
+</html> 
