@@ -111,24 +111,6 @@ export const getEmailByUsername = catchAsync(async (req: Request, res: Response)
       });
     }
     
-    // If the lookup is failing but we know the mapping
-    // This is a fallback in case the DB queries aren't working properly
-    const knownUserMap: Record<string, string> = {
-      'itayo': 'itayo11+arnavnovia@gmail.com',
-      'admin': 'itayo11+arnavadmin@gmail.com'
-    };
-    
-    if (knownUserMap[username]) {
-      console.log(`Using fallback email for ${username}: ${knownUserMap[username]}`);
-      return res.status(200).json({
-        status: 'success',
-        data: {
-          email: knownUserMap[username],
-          isEmail: false
-        }
-      });
-    }
-    
     // User not found or no email available
     return res.status(404).json({
       status: 'fail',

@@ -363,6 +363,33 @@ const tokens = {
     } catch (error) {
       return handleApiError(error);
     }
+  },
+  
+  // Get transaction history
+  getTransactions: async (limit = 20) => {
+    try {
+      const token = localStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+      
+      const response = await fetch(`${API_BASE_URL}/tokens/transactions?limit=${limit}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to get transaction history');
+      }
+      
+      return { success: true, transactions: data.data.transactions };
+    } catch (error) {
+      return handleApiError(error);
+    }
   }
 };
 

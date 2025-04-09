@@ -1,5 +1,5 @@
 import express from 'express';
-import { getMyTokens, transferUserTokens, getUsers } from '../controllers/tokenController';
+import { getMyTokens, transferUserTokens, getUsers, getTransactionHistory } from '../controllers/tokenController';
 import { protect } from '../middleware/authMiddleware';
 
 const router = express.Router();
@@ -15,5 +15,8 @@ router.post('/transfer', transferUserTokens);
 
 // Get all users (for dropdown selection)
 router.get('/users', getUsers);
+
+// Get transaction history
+router.get('/transactions', getTransactionHistory);
 
 export default router; 

@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { catchAsync } from '../utils/errorHandler';
-import { transferTokens, getUserTokens, getAllUsers } from '../models/userModel';
+import { transferTokens, getUserTokens, getAllUsers, getUserTransactions } from '../models/userModel';
 
 // Get the current user's token balance
 export const getMyTokens = catchAsync(async (req: Request, res: Response) => {
@@ -108,6 +108,21 @@ export const getUsers = catchAsync(async (req: Request, res: Response) => {
     status: 'success',
     data: {
       users: formattedUsers
+    }
+  });
+});
+
+// Get user's transaction history
+export const getTransactionHistory = catchAsync(async (req: Request, res: Response) => {
+  const userId = (req as any).user.id;
+  const limit = req.query.limit ? parseInt(req.query.limit as string) : 20;
+  
+  const transactions = await getUserTransactions(userId, limit);
+  
+  res.status(200).json({
+    status: 'success',
+    data: {
+      transactions
     }
   });
 }); 

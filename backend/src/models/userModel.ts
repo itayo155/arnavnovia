@@ -9,6 +9,17 @@ export interface User {
   created_at?: string;
 }
 
+// Interface for transactions
+export interface Transaction {
+  id: string;
+  from_user_id: string;
+  to_user_id: string;
+  points: number;
+  created_at: string;
+  from_username?: string; // Will be populated after database query
+  to_username?: string; // Will be populated after database query
+}
+
 // Function to get all users
 export const getAllUsers = async (): Promise<User[]> => {
   try {
@@ -135,6 +146,24 @@ export const transferTokens = async (
       return false;
     }
     
+    // Log the transaction to the transactions table
+    const { error: logError } = await supabase
+      .from('transactions')
+      .insert({
+        from_user_id: senderId,
+        to_user_id: receiverId,
+        points: amount,
+        // created_at will be set automatically by Supabase
+      });
+    
+    if (logError) {
+      // Log error but don't fail the transaction as the tokens were already transferred
+      console.error('Error logging transaction:', logError);
+      console.error('Transaction was successful but not logged to history');
+    } else {
+      console.log('Transaction logged to history successfully');
+    }
+    
     console.log('Token transfer successful');
     return true;
   } catch (error) {
@@ -164,5 +193,69 @@ export const getUserTokens = async (userId: string): Promise<number | null> => {
   } catch (error) {
     console.error(`Error in getUserTokens for user ${userId}:`, error);
     return null;
+  }
+};
+
+// Function to get user's transaction history
+export const getUserTransactions = async (userId: string, limit: number = 20): Promise<Transaction[]> => {
+  try {
+    console.log(`Getting transaction history for user ${userId}`);
+    
+    // Query transactions where user is either sender or receiver
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .or(`from_user_id.eq.${userId},to_user_id.eq.${userId}`)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+    
+    if (error) {
+      console.error(`Error fetching transactions for user ${userId}:`, error);
+      return [];
+    }
+    
+    if (!data || data.length === 0) {
+      console.log(`No transactions found for user ${userId}`);
+      return [];
+    }
+    
+    console.log(`Found ${data.length} transactions for user ${userId}`);
+    
+    // Get all unique user IDs from the transactions
+    const userIds = new Set<string>();
+    data.forEach(transaction => {
+      userIds.add(transaction.from_user_id);
+      userIds.add(transaction.to_user_id);
+    });
+    
+    // Get usernames for all users involved in transactions
+    const userIdArray = Array.from(userIds);
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, username')
+      .in('id', userIdArray);
+    
+    if (userError || !userData) {
+      console.error('Error fetching usernames for transactions:', userError);
+      return data; // Return transactions without usernames
+    }
+    
+    // Create a map of user IDs to usernames
+    const usernameMap: Record<string, string> = {};
+    userData.forEach(user => {
+      usernameMap[user.id] = user.username;
+    });
+    
+    // Add usernames to each transaction
+    const transactionsWithUsernames = data.map(transaction => ({
+      ...transaction,
+      from_username: usernameMap[transaction.from_user_id] || 'Unknown',
+      to_username: usernameMap[transaction.to_user_id] || 'Unknown'
+    }));
+    
+    return transactionsWithUsernames;
+  } catch (error) {
+    console.error(`Error in getUserTransactions for user ${userId}:`, error);
+    return [];
   }
 }; 

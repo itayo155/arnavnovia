@@ -122,6 +122,32 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
+        .transaction-item {
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .transaction-amount {
+            font-weight: bold;
+            font-size: 16px;
+        }
+        .transaction-amount.incoming {
+            color: #4CAF50;
+        }
+        .transaction-amount.outgoing {
+            color: #f44336;
+        }
+        .transaction-description {
+            margin: 0 10px;
+            flex: 1;
+        }
+        .transaction-date {
+            color: #999;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -162,6 +188,15 @@
                 <div class="error-message" id="error-message"></div>
             </form>
         </div>
+
+        <div class="card">
+            <h2>היסטורית העברות</h2>
+            <div id="transactions-container">
+                <div class="loader" id="transactions-loader"></div>
+                <div id="no-transactions" style="display: none;">אין פעולות אחרונות</div>
+                <div id="transactions-list"></div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -185,7 +220,8 @@
                 if (!document.hidden) {
                     // Pass true to indicate this is an auto-refresh call
                     await loadTokenBalance(true);
-                    console.log('Auto-refreshed token balance');
+                    await loadTransactions();
+                    console.log('Auto-refreshed data');
                 }
             }, POLLING_INTERVAL);
             
@@ -257,6 +293,86 @@
             }
         }
 
+        // Load transaction history
+        async function loadTransactions() {
+            const transactionsContainer = document.getElementById('transactions-container');
+            const loaderElement = document.getElementById('transactions-loader');
+            const noTransactionsElement = document.getElementById('no-transactions');
+            const transactionsList = document.getElementById('transactions-list');
+            
+            // Don't show loader for auto-refresh
+            const currentUserId = JSON.parse(localStorage.getItem('user')).id;
+            
+            const result = await api.tokens.getTransactions();
+            
+            loaderElement.style.display = 'none';
+            
+            if (result.error) {
+                console.error('Error loading transactions:', result.error);
+                return;
+            }
+            
+            const transactions = result.transactions;
+            
+            if (!transactions || transactions.length === 0) {
+                noTransactionsElement.style.display = 'block';
+                transactionsList.innerHTML = '';
+                return;
+            }
+            
+            noTransactionsElement.style.display = 'none';
+            transactionsList.innerHTML = '';
+            
+            // Format date helper function
+            const formatDate = (dateString) => {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('he-IL') + ' ' + date.toLocaleTimeString('he-IL', {hour: '2-digit', minute:'2-digit'});
+            };
+            
+            transactions.forEach(transaction => {
+                const isIncoming = transaction.to_user_id === currentUserId;
+                const transactionElement = document.createElement('div');
+                transactionElement.classList.add('transaction-item');
+                
+                const amountSpan = document.createElement('span');
+                amountSpan.classList.add('transaction-amount');
+                
+                if (isIncoming) {
+                    amountSpan.classList.add('incoming');
+                    amountSpan.textContent = `+${transaction.points}`;
+                    
+                    const descriptionSpan = document.createElement('span');
+                    descriptionSpan.classList.add('transaction-description');
+                    descriptionSpan.textContent = `התקבל מ-${transaction.from_username}`;
+                    
+                    const dateSpan = document.createElement('span');
+                    dateSpan.classList.add('transaction-date');
+                    dateSpan.textContent = formatDate(transaction.created_at);
+                    
+                    transactionElement.appendChild(amountSpan);
+                    transactionElement.appendChild(descriptionSpan);
+                    transactionElement.appendChild(dateSpan);
+                } else {
+                    amountSpan.classList.add('outgoing');
+                    amountSpan.textContent = `-${transaction.points}`;
+                    
+                    const descriptionSpan = document.createElement('span');
+                    descriptionSpan.classList.add('transaction-description');
+                    descriptionSpan.textContent = `נשלח אל ${transaction.to_username}`;
+                    
+                    const dateSpan = document.createElement('span');
+                    dateSpan.classList.add('transaction-date');
+                    dateSpan.textContent = formatDate(transaction.created_at);
+                    
+                    transactionElement.appendChild(amountSpan);
+                    transactionElement.appendChild(descriptionSpan);
+                    transactionElement.appendChild(dateSpan);
+                }
+                
+                transactionsList.appendChild(transactionElement);
+            });
+        }
+
         // Check if user is logged in
         document.addEventListener('DOMContentLoaded', async () => {
             // If not logged in, redirect to login page
@@ -276,6 +392,9 @@
             
             // Load users for dropdown
             await loadUsers();
+            
+            // Load transaction history
+            await loadTransactions();
             
             // Start polling for updates
             startPolling();
