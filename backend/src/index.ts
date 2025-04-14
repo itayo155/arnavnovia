@@ -10,8 +10,18 @@ import { globalErrorHandler } from './utils/errorHandler';
 // Create Express app
 const app = express();
 
+// CORS configuration
+const corsOptions = {
+  origin: config.nodeEnv === 'production'
+    ? ['https://arnavnovia.com', 'https://www.arnavnovia.com']
+    : 'http://localhost:8080',
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
 // Middleware
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Logging in development mode
@@ -19,6 +29,15 @@ if (config.nodeEnv === 'development') {
   app.use(morgan('dev'));
   console.log('Server running in development mode on port', config.port);
 }
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Server is healthy',
+    environment: config.nodeEnv
+  });
+});
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -40,7 +59,7 @@ app.use(globalErrorHandler);
 
 // Start server
 const server = app.listen(config.port, () => {
-  console.log(`Server listening on port ${config.port}`);
+  console.log(`Server running in ${config.nodeEnv} mode on port ${config.port}`);
 });
 
 // Handle unhandled rejections

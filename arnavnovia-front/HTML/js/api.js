@@ -1,5 +1,8 @@
 // API utility for token transfer app
-const API_BASE_URL = 'http://localhost:3001/api';
+const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_BASE_URL = isDevelopment 
+  ? 'http://localhost:3001/api'
+  : 'https://api.arnavnovia.com/api';
 
 // Supabase configuration
 const SUPABASE_URL = 'https://tzkomgshzsmbvodjbglb.supabase.co';

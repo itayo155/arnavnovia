@@ -1,0 +1,33 @@
+services:
+  # Backend API Service
+  - type: web
+    name: arnavnovia-backend
+    env: node
+    region: oregon # You can change this to a region closer to your users
+    buildCommand: cd backend && npm install && npm run build
+    startCommand: cd backend && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: SUPABASE_URL
+        sync: false # This will be set manually in Render dashboard
+      - key: SUPABASE_ANON_KEY
+        sync: false # This will be set manually in Render dashboard
+    healthCheckPath: /api/health
+    autoDeploy: true
+
+  # Frontend Static Site
+  - type: static
+    name: arnavnovia-frontend
+    env: static
+    buildCommand: echo "No build needed for static HTML"
+    staticPublishPath: ./arnavnovia-front/HTML
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    domains:
+      - arnavnovia.com
+      - www.arnavnovia.com 
