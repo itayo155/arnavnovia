@@ -19,10 +19,11 @@ services:
     autoDeploy: true
 
   # Frontend Static Site
-  - type: static_site
+  - type: web
+    env: static
     name: arnavnovia-frontend
     buildCommand: echo "No build needed for static HTML"
-    publishDir: ./arnavnovia-front/HTML
+    staticPublishPath: ./arnavnovia-front/HTML
     routes:
       - type: rewrite
         source: /*
