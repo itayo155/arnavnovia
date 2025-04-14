@@ -11,17 +11,17 @@ import { globalErrorHandler } from './utils/errorHandler';
 const app = express();
 
 // CORS configuration
-const corsOptions = {
-  origin: config.nodeEnv === 'production'
-    ? ['https://arnavnovia.com', 'https://www.arnavnovia.com']
-    : 'http://localhost:8080',
+app.use(cors({
+  origin: [
+    'http://localhost:8080',
+    'http://localhost:3001',
+    'https://arnavnovia.com',
+    'https://api.arnavnovia.com'
+  ],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
-};
-
-// Middleware
-app.use(cors(corsOptions));
+}));
 app.use(express.json());
 
 // Logging in development mode
