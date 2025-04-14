@@ -208,8 +208,12 @@ const auth = {
         throw new Error('Supabase client not available');
       }
       
+      const redirectUrl = isDevelopment 
+        ? 'http://localhost:8080/HTML/reset-password.html'
+        : 'https://arnavnovia.com/reset-password.html';
+      
       const { error } = await sb.auth.resetPasswordForEmail(email, {
-        redirectTo: 'http://localhost:8080/HTML/reset-password.html',
+        redirectTo: redirectUrl,
       });
       
       if (error) {
