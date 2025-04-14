@@ -7,6 +7,7 @@ export interface User {
   email?: string;
   tokens: number;
   created_at?: string;
+  is_visible: boolean;
 }
 
 // Interface for transactions
@@ -21,14 +22,18 @@ export interface Transaction {
 }
 
 // Function to get all users
-export const getAllUsers = async (): Promise<User[]> => {
+export const getAllUsers = async (visibleOnly: boolean = true): Promise<User[]> => {
   try {
-    console.log('Attempting to get all users from users table');
+    console.log(`Attempting to get all users from users table (visibleOnly = ${visibleOnly})`);
     
     // Try with simple table name first
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('users')
-      .select('id, username, email, tokens, created_at');
+      .select('id, username, email, tokens, created_at, is_visible');
+
+    if (visibleOnly && data) {
+      data = data?.filter(user => user.is_visible);
+    }
     
     if (error) {
       console.error('Error fetching users:', error);
@@ -72,14 +77,16 @@ export const getAllUsers = async (): Promise<User[]> => {
 };
 
 // Function to get user by ID
+// only returns visible users
 export const findUserById = async (id: string): Promise<User | null> => {
   try {
     console.log(`Looking for user with ID: ${id}`);
     
     const { data, error } = await supabase
       .from('users')
-      .select('id, username, email, tokens, created_at')
+      .select('id, username, email, tokens, created_at, is_visible')
       .eq('id', id)
+      .eq('is_visible', true)
       .single();
     
     if (error) {
@@ -96,14 +103,16 @@ export const findUserById = async (id: string): Promise<User | null> => {
 };
 
 // Function to get user by username
+// only returns visible users
 export const findUserByUsername = async (username: string): Promise<User | null> => {
   try {
     console.log(`Looking for user with username: ${username}`);
     
     const { data, error } = await supabase
       .from('users')
-      .select('id, username, email, tokens, created_at')
+      .select('id, username, email, tokens, created_at, is_visible')
       .eq('username', username)
+      .eq('is_visible', true)
       .single();
     
     if (error) {
