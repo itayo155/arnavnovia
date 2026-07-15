@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>משחק אנגלית 🎈</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700;800&family=Fredoka:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --primary:#6C5CE7; --primary-dark:#5546c9; --primary-soft:#efeafe;
+    --accent:#ff7a59; --success:#22c55e; --success-soft:#dcfce7;
+    --error:#ef4444; --error-soft:#fee2e2;
+    --ink:#1e2340; --muted:#7a7f9a; --line:#e7e8f2; --card:#ffffff;
+    --shadow:0 10px 30px -12px rgba(60,50,120,.35);
+    --shadow-sm:0 4px 14px -6px rgba(60,50,120,.3);
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{
+    font-family:'Rubik',system-ui,-apple-system,'Segoe UI','Arial Hebrew',sans-serif;
+    color:var(--ink);
+    background:linear-gradient(160deg,#eef2ff 0%,#faf5ff 48%,#fff1f2 100%);
+    background-attachment:fixed;
+    min-height:100%;
+    display:flex; align-items:flex-start; justify-content:center;
+    padding:16px;
+  }
+  #app{width:100%; max-width:540px; margin:auto}
+  .screen{animation:pop .35s cubic-bezier(.2,.9,.3,1.2)}
+  @keyframes pop{from{opacity:0; transform:translateY(10px) scale(.98)}to{opacity:1; transform:none}}
+
+  h1,h2{font-family:'Fredoka','Rubik',sans-serif; margin:0}
+  .title{font-size:2.1rem; font-weight:700; text-align:center; margin-bottom:4px}
+  .subtitle{text-align:center; color:var(--muted); margin-bottom:22px; font-size:1.05rem}
+
+  .card{background:var(--card); border-radius:26px; padding:26px 22px; box-shadow:var(--shadow)}
+  .en{direction:ltr; unicode-bidi:isolate}
+
+  /* Buttons */
+  .btn{border:none; cursor:pointer; font-family:inherit; font-weight:600; border-radius:16px; transition:transform .12s, box-shadow .2s, background .2s}
+  .btn:active{transform:scale(.96)}
+  .btn-primary{background:linear-gradient(135deg,var(--primary),#8b7bef); color:#fff; font-size:1.25rem; padding:16px 22px; width:100%; box-shadow:0 10px 22px -8px rgba(108,92,231,.7)}
+  .btn-primary:hover{box-shadow:0 14px 26px -8px rgba(108,92,231,.85)}
+  .btn-ghost{background:#fff; color:var(--primary); font-size:1.05rem; padding:14px 20px; width:100%; box-shadow:var(--shadow-sm)}
+  .btn-ghost:hover{background:var(--primary-soft)}
+  .stack{display:flex; flex-direction:column; gap:12px; margin-top:18px}
+
+  /* Login */
+  .players{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:8px}
+  .player-card{position:relative; background:#fff; border:2px solid var(--line); border-radius:20px; padding:16px 10px; text-align:center; cursor:pointer; transition:transform .12s,border-color .2s,box-shadow .2s}
+  .player-card:hover{border-color:var(--primary); transform:translateY(-3px); box-shadow:var(--shadow-sm)}
+  .player-card .avatar{font-size:2.6rem; line-height:1}
+  .player-card .pname{font-weight:600; margin-top:6px; font-size:1.05rem; word-break:break-word}
+  .player-card .pbest{font-size:.8rem; color:var(--muted); margin-top:2px}
+  .player-card .del{position:absolute; top:6px; inset-inline-start:6px; width:24px; height:24px; border-radius:50%; border:none; background:#f1f1f6; color:#b0b3c6; font-size:.9rem; cursor:pointer; opacity:0; transition:opacity .2s}
+  .player-card:hover .del{opacity:1}
+  .player-card .del:hover{background:var(--error-soft); color:var(--error)}
+  .newrow{display:flex; gap:10px; margin-top:16px}
+  .text-input{flex:1; border:2px solid var(--line); border-radius:16px; padding:14px 16px; font-family:inherit; font-size:1.1rem; outline:none; transition:border-color .2s}
+  .text-input:focus{border-color:var(--primary)}
+
+  /* Home */
+  .hero{display:flex; align-items:center; gap:14px; justify-content:center; margin-bottom:6px}
+  .hero .avatar{font-size:3rem}
+  .hero .hi{font-size:1.7rem; font-weight:700}
+  .statsrow{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:18px 0 4px}
+  .stat-card{background:#fff; border-radius:20px; padding:16px; text-align:center; box-shadow:var(--shadow-sm)}
+  .stat-card .big{font-size:2rem; font-weight:800; font-family:'Fredoka',sans-serif}
+  .stat-card .lbl{color:var(--muted); font-size:.9rem; margin-top:2px}
+  .stat-card.score .big{color:var(--primary)}
+  .stat-card.streak .big{color:var(--accent)}
+
+  /* HUD (quiz) */
+  .hud{display:flex; align-items:center; gap:10px; margin-bottom:14px}
+  .icon-btn{width:42px; height:42px; border-radius:14px; border:none; background:#fff; color:var(--muted); font-size:1.1rem; cursor:pointer; box-shadow:var(--shadow-sm); flex:0 0 auto}
+  .icon-btn:hover{color:var(--ink)}
+  .chip{background:#fff; border-radius:14px; padding:8px 14px; font-weight:700; box-shadow:var(--shadow-sm); font-size:1.05rem}
+  .chip .em{margin-inline-end:2px}
+  .hud .spacer{flex:1}
+  .progress{height:12px; background:#e9eaf6; border-radius:999px; overflow:hidden; margin-bottom:18px}
+  .progress-bar{height:100%; width:0; background:linear-gradient(90deg,var(--primary),#9b8bff); border-radius:999px; transition:width .4s ease}
+
+  /* Question */
+  .q-label{color:var(--muted); text-align:center; font-size:1rem; margin-bottom:14px; font-weight:500}
+  .prompt-box{display:flex; align-items:center; justify-content:center; gap:12px; flex-wrap:wrap; min-height:70px; margin-bottom:8px}
+  .prompt{font-size:2.4rem; font-weight:700; text-align:center; line-height:1.2}
+  .prompt.english{font-family:'Fredoka','Rubik',sans-serif}
+  .options{display:grid; gap:12px; margin-top:20px}
+  .opt{display:flex; align-items:center; gap:10px; justify-content:center; background:#fff; border:2px solid var(--line); border-radius:18px; padding:16px 14px; font-size:1.35rem; font-weight:600; cursor:pointer; transition:transform .1s,border-color .15s,background .15s; text-align:center}
+  .opt:hover:not(:disabled){border-color:var(--primary); background:var(--primary-soft)}
+  .opt:active:not(:disabled){transform:scale(.97)}
+  .opt:disabled{cursor:default}
+  .opt.correct{border-color:var(--success); background:var(--success-soft); color:#166534}
+  .opt.wrong{border-color:var(--error); background:var(--error-soft); color:#991b1b}
+  .opt.dim{opacity:.45}
+  .opt .opt-en{direction:ltr; font-family:'Fredoka','Rubik',sans-serif}
+
+  /* Play button */
+  .play{flex:0 0 auto; width:46px; height:46px; border-radius:50%; border:none; background:var(--primary-soft); color:var(--primary); font-size:1.3rem; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; transition:transform .12s,background .2s}
+  .play:hover{background:#e2d9fd; transform:scale(1.08)}
+  .play:active{transform:scale(.92)}
+  .play.sm{width:38px; height:38px; font-size:1.05rem}
+  .play.speaking{animation:pulse .7s infinite}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(108,92,231,.4)}50%{box-shadow:0 0 0 8px rgba(108,92,231,0)}}
+
+  /* Open answer */
+  .answer-input{width:100%; border:2px solid var(--line); border-radius:18px; padding:16px; font-family:inherit; font-size:1.6rem; text-align:center; outline:none; margin-top:20px; transition:border-color .2s}
+  .answer-input:focus{border-color:var(--primary)}
+  .answer-input.correct{border-color:var(--success); background:var(--success-soft)}
+  .answer-input.wrong{border-color:var(--error); background:var(--error-soft)}
+
+  /* Feedback banner */
+  .banner{margin-top:18px; border-radius:18px; padding:16px; text-align:center; font-size:1.15rem; font-weight:600; animation:pop .3s}
+  .banner.ok{background:var(--success-soft); color:#166534}
+  .banner.no{background:var(--error-soft); color:#991b1b}
+  .banner .ans{display:inline-flex; align-items:center; gap:8px; margin-top:6px; font-weight:700; direction:ltr}
+  .banner .he-ans{direction:rtl; font-weight:700}
+
+  /* Config */
+  .field{margin:20px 0}
+  .field .flabel{display:flex; justify-content:space-between; font-weight:600; margin-bottom:8px}
+  .field .flabel .pct{color:var(--primary); font-weight:800}
+  input[type=range]{width:100%; accent-color:var(--primary); height:8px}
+  .seg{display:flex; gap:8px}
+  .seg button{flex:1; padding:12px; border-radius:14px; border:2px solid var(--line); background:#fff; font-family:inherit; font-weight:600; font-size:1.05rem; cursor:pointer; transition:.15s}
+  .seg button.on{border-color:var(--primary); background:var(--primary-soft); color:var(--primary)}
+  .toggle-row{display:flex; align-items:center; justify-content:space-between; margin:20px 0}
+  .switch{position:relative; width:56px; height:32px; flex:0 0 auto}
+  .switch input{opacity:0; width:0; height:0}
+  .slider{position:absolute; inset:0; background:#d5d7e6; border-radius:999px; cursor:pointer; transition:.2s}
+  .slider:before{content:""; position:absolute; height:26px; width:26px; inset-inline-start:3px; top:3px; background:#fff; border-radius:50%; transition:.2s; box-shadow:0 2px 4px rgba(0,0,0,.2)}
+  .switch input:checked + .slider{background:var(--primary)}
+  .switch input:checked + .slider:before{transform:translateX(-24px)}
+  .hint{color:var(--muted); font-size:.85rem; margin-top:4px}
+
+  /* Results */
+  .result-emoji{font-size:4.5rem; text-align:center; line-height:1; margin-bottom:6px}
+  .result-title{text-align:center; font-size:1.9rem; font-weight:700; font-family:'Fredoka',sans-serif; margin-bottom:16px}
+  .record{background:linear-gradient(135deg,#fff7d6,#ffe9c2); color:#a06a00; border-radius:14px; padding:10px; text-align:center; font-weight:700; margin-bottom:14px}
+
+  /* Confetti */
+  #confetti{position:fixed; inset:0; pointer-events:none; overflow:hidden; z-index:50}
+  .conf{position:absolute; top:-30px; font-size:1.5rem; animation:fall linear forwards}
+  @keyframes fall{to{transform:translateY(105vh) rotate(720deg); opacity:.9}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="confetti"></div>
+<script>
+const WORDS = [{"en":"a lot/lots","he":"הרבה","type":"phrase"},{"en":"a quarter to/a quarter past","he":"רבע ל... / רבע אחרי...","type":"phrase"},{"en":"a/an","he":"מילית שכותבים לפני שם עצם ספיר ביחיד","type":"phrase"},{"en":"about","he":"אודות, על","type":"word"},{"en":"above","he":"מעל","type":"word"},{"en":"adult","he":"מבוגר","type":"word"},{"en":"after","he":"אחרי","type":"word"},{"en":"afternoon","he":"אחר הצהריים","type":"word"},{"en":"again","he":"שוב","type":"word"},{"en":"age","he":"גיל","type":"word"},{"en":"ago","he":"לפני (זמן)","type":"word"},{"en":"air","he":"אוויר","type":"word"},{"en":"airplane/plane","he":"מטוס","type":"word"},{"en":"all right","he":"בסדר","type":"phrase"},{"en":"alphabet","he":"אלף-בית","type":"word"},{"en":"also","he":"גם","type":"word"},{"en":"always","he":"תמיד","type":"word"},{"en":"ambulance","he":"אמבולנס","type":"word"},{"en":"among","he":"בקרב, בין","type":"word"},{"en":"animal","he":"חיה","type":"word"},{"en":"another","he":"אחד נוסף, עוד","type":"word"},{"en":"answer","he":"תשובה, לענות","type":"word"},{"en":"any","he":"כלשהו, בכלל","type":"word"},{"en":"anybody","he":"מישהו","type":"word"},{"en":"anyone","he":"מישהו","type":"word"},{"en":"anything","he":"משהו","type":"word"},{"en":"anything else","he":"משהו נוסף","type":"phrase"},{"en":"anyway","he":"בכל מקרה","type":"word"},{"en":"anywhere","he":"בכל מקום","type":"word"},{"en":"apple","he":"תפוח","type":"word"},{"en":"April","he":"אפריל","type":"word"},{"en":"arm","he":"זרוע","type":"word"},{"en":"art","he":"אמנות","type":"word"},{"en":"as well","he":"גם","type":"phrase"},{"en":"August","he":"אוגוסט","type":"word"},{"en":"aunt/auntie","he":"דודה","type":"word"},{"en":"autumn","he":"סתיו","type":"word"},{"en":"baby","he":"תינוק","type":"word"},{"en":"back","he":"גב, אחורה","type":"word"},{"en":"badly","he":"באופן רע","type":"word"},{"en":"bake","he":"לאפות","type":"word"},{"en":"ball","he":"כדור","type":"word"},{"en":"banana","he":"בננה","type":"word"},{"en":"band","he":"להקה","type":"word"},{"en":"bank","he":"בנק","type":"word"},{"en":"bath","he":"אמבטיה / להתרחץ","type":"word"},{"en":"be called sth","he":"להיקרא בשם","type":"phrase"},{"en":"be","he":"להיות","type":"word"},{"en":"beach","he":"חוף ים","type":"word"},{"en":"beautiful","he":"יפה","type":"word"},{"en":"because","he":"בגלל, כי","type":"word"},{"en":"before","he":"לפני","type":"word"},{"en":"begin","he":"להתחיל","type":"word"},{"en":"behind","he":"מאחורי","type":"word"},{"en":"below","he":"מתחת","type":"word"},{"en":"best","he":"הכי טוב","type":"word"},{"en":"better","he":"טוב יותר","type":"word"},{"en":"between","he":"בין","type":"word"},{"en":"bird","he":"ציפור","type":"word"},{"en":"birthday","he":"יום הולדת","type":"word"},{"en":"biscuit","he":"עוגייה","type":"word"},{"en":"black","he":"שחור","type":"word","alt":["שחורה"]},{"en":"blouse","he":"חולצה","type":"word"},{"en":"blue","he":"כחול","type":"word","alt":["כחולה"]},{"en":"board","he":"לוח","type":"word"},{"en":"boat","he":"סירה","type":"word"},{"en":"body","he":"גוף","type":"word"},{"en":"book","he":"ספר","type":"word"},{"en":"bottle","he":"בקבוק","type":"word"},{"en":"bread","he":"לחם","type":"word"},{"en":"breakfast","he":"ארוחת בוקר","type":"word"},{"en":"bring","he":"להביא","type":"word"},{"en":"brother","he":"אח","type":"word"},{"en":"brown","he":"חום","type":"word","alt":["חומה"]},{"en":"build","he":"לבנות","type":"word"},{"en":"busy","he":"עסוק","type":"word","alt":["עסוקה"]},{"en":"butter","he":"חמאה","type":"word"},{"en":"by","he":"על ידי, ליד","type":"word"},{"en":"bye","he":"להתראות","type":"word"},{"en":"cake","he":"עוגה","type":"word"},{"en":"call","he":"להתקשר, לקרוא ל...","type":"word"},{"en":"can","he":"יכול","type":"word"},{"en":"capital letter","he":"אות גדולה","type":"phrase"},{"en":"car","he":"מכונית","type":"word"},{"en":"card","he":"כרטיס","type":"word"},{"en":"care","he":"דאגה, לטפל","type":"word"},{"en":"catch","he":"לתפוס","type":"word"},{"en":"cellphone","he":"טלפון נייד","type":"word"},{"en":"center","he":"מרכז","type":"word"},{"en":"chair","he":"כיסא","type":"word"},{"en":"cheap","he":"זול","type":"word","alt":["זולה"]},{"en":"chicken","he":"עוף","type":"word"},{"en":"child","he":"ילד","type":"word"},{"en":"chocolate","he":"שוקולד","type":"word"},{"en":"choose","he":"לבחור","type":"word"},{"en":"cinema","he":"קולנוע","type":"word"},{"en":"city","he":"עיר","type":"word"},{"en":"class","he":"כיתה","type":"word"},{"en":"classroom","he":"כיתת לימוד","type":"word"},{"en":"clean","he":"נקי, לנקות","type":"word","alt":["נקייה"]},{"en":"clever","he":"חכם","type":"word","alt":["חכמה"]},{"en":"clock","he":"שעון","type":"word"},{"en":"close","he":"לסגור","type":"word"},{"en":"clothes","he":"בגדים","type":"word"},{"en":"club","he":"מועדון","type":"word"},{"en":"coat","he":"מעיל","type":"word"},{"en":"coffee","he":"קפה","type":"word"},{"en":"cold","he":"קר","type":"word","alt":["קרה"]},{"en":"color","he":"צבע / לצבוע","type":"word"},{"en":"come","he":"לבוא","type":"word"},{"en":"come from","he":"לבוא מ...","type":"phrase"},{"en":"come from swh/sth","he":"להגיע ממקום כלשהו","type":"phrase"},{"en":"computer","he":"מחשב","type":"word"},{"en":"conversation","he":"שיחה","type":"word"},{"en":"cook","he":"לבשל","type":"word"},{"en":"cool","he":"קריר, מגניב","type":"word"},{"en":"corner","he":"פינה","type":"word"},{"en":"count","he":"לספור","type":"word"},{"en":"country","he":"מדינה, כפר","type":"word"},{"en":"cow","he":"פרה","type":"word"},{"en":"cup","he":"ספל","type":"word"},{"en":"customer","he":"לקוח","type":"word"},{"en":"daddy","he":"אבא","type":"word"},{"en":"dark","he":"חשוך, כהה","type":"word"},{"en":"date","he":"תאריך","type":"word"},{"en":"daughter","he":"בת","type":"word"},{"en":"day","he":"יום","type":"word"},{"en":"December","he":"דצמבר","type":"word"},{"en":"different","he":"שונה","type":"word"},{"en":"difficult","he":"קשה","type":"word"},{"en":"dinner","he":"ארוחת ערב","type":"word"},{"en":"doctor","he":"רופא","type":"word"},{"en":"document","he":"מסמך","type":"word"},{"en":"dollar","he":"דולר","type":"word"},{"en":"Don't forget","he":"אל תשכח","type":"phrase"},{"en":"don't worry","he":"אל תדאג","type":"phrase"},{"en":"door","he":"דלת","type":"word"},{"en":"down","he":"למטה","type":"word"},{"en":"draw","he":"לצייר","type":"word"},{"en":"dress","he":"שמלה","type":"word"},{"en":"drink","he":"לשתות, משקה","type":"word"},{"en":"drive","he":"לנהוג","type":"word"},{"en":"driver","he":"נהג","type":"word"},{"en":"dry","he":"יבש","type":"word","alt":["יבשה"]},{"en":"ear","he":"אוזן","type":"word"},{"en":"early","he":"מוקדם","type":"word"},{"en":"easily","he":"בקלות","type":"word"},{"en":"east","he":"מזרח","type":"word"},{"en":"eat","he":"לאכול","type":"word"},{"en":"eight","he":"שמונה","type":"word"},{"en":"eighteen","he":"שמונה-עשרה","type":"word"},{"en":"eighty","he":"שמונים","type":"word"},{"en":"eleven","he":"אחת-עשרה","type":"word"},{"en":"English","he":"אנגלית","type":"word"},{"en":"enjoy","he":"ליהנות","type":"word"},{"en":"evening","he":"ערב","type":"word"},{"en":"every","he":"כל","type":"word"},{"en":"everything","he":"הכול","type":"word"},{"en":"everywhere","he":"בכל מקום","type":"word"},{"en":"Excuse me","he":"סלח לי","type":"phrase"},{"en":"eye","he":"עין","type":"word"},{"en":"face","he":"פנים","type":"word"},{"en":"fall","he":"ליפול","type":"word"},{"en":"family","he":"משפחה","type":"word"},{"en":"far","he":"רחוק","type":"word"},{"en":"farm","he":"חווה","type":"word"},{"en":"farmer","he":"חקלאי","type":"word"},{"en":"fast","he":"מהיר, מהר","type":"word","alt":["מהירה"]},{"en":"fast food","he":"אוכל מהיר","type":"phrase"},{"en":"fat","he":"שמן","type":"word","alt":["שמנה"]},{"en":"father","he":"אבא","type":"word"},{"en":"favorite","he":"מועדף","type":"word"},{"en":"February","he":"פברואר","type":"word"},{"en":"feel","he":"להרגיש","type":"word"},{"en":"fifteen","he":"חמש-עשרה","type":"word"},{"en":"fifty","he":"חמישים","type":"word"},{"en":"find","he":"למצוא","type":"word"},{"en":"finger","he":"אצבע","type":"word"},{"en":"finish","he":"לסיים","type":"word"},{"en":"first name","he":"שם פרטי","type":"phrase"},{"en":"first","he":"ראשון","type":"word","alt":["ראשונה"]},{"en":"fish","he":"דג","type":"word"},{"en":"five","he":"חמש","type":"word","alt":["חמישה"]},{"en":"flat","he":"דירה","type":"word"},{"en":"floor","he":"קומה, רצפה","type":"word"},{"en":"flower","he":"פרח","type":"word"},{"en":"fly","he":"לעוף, לטוס","type":"word"},{"en":"food","he":"אוכל","type":"word"},{"en":"foot","he":"כף רגל","type":"word"},{"en":"for","he":"בשביל, עבור","type":"word"},{"en":"forget","he":"לשכוח","type":"word"},{"en":"fork","he":"מזלג","type":"word"},{"en":"forty","he":"ארבעים","type":"word"},{"en":"four","he":"ארבע","type":"word"},{"en":"fourteen","he":"ארבע-עשרה","type":"word"},{"en":"fourth","he":"רביעי","type":"word","alt":["רביעית"]},{"en":"Friday","he":"יום שישי","type":"word"},{"en":"friendly","he":"חברותי","type":"word"},{"en":"from","he":"מ...","type":"word"},{"en":"fruit","he":"פרי","type":"word"},{"en":"game","he":"משחק","type":"word"},{"en":"garden","he":"גינה","type":"word"},{"en":"garlic","he":"שום","type":"word"},{"en":"get (sb) up","he":"לקום, להעיר מישהו","type":"phrase"},{"en":"girl","he":"ילדה","type":"word"},{"en":"give","he":"לתת","type":"word"},{"en":"glass","he":"זכוכית, כוס","type":"word"},{"en":"go down","he":"לרדת","type":"phrase"},{"en":"go in/into","he":"להיכנס ל...","type":"phrase"},{"en":"go shopping","he":"ללכת לקניות","type":"phrase"},{"en":"goal","he":"מטרה, גול","type":"word"},{"en":"good","he":"טוב","type":"word","alt":["טובה"]},{"en":"good afternoon / good night","he":"אחר צהריים טובים / לילה טוב","type":"phrase"},{"en":"grade","he":"כיתה, ציון","type":"word"},{"en":"grandchild","he":"נכד/ה","type":"word"},{"en":"granddaughter","he":"נכדה","type":"word"},{"en":"grandson","he":"נכד","type":"word"},{"en":"grandfather","he":"סבא","type":"word"},{"en":"grandmother","he":"סבתא","type":"word"},{"en":"grandparent","he":"סבא או סבתא","type":"word"},{"en":"grass","he":"דשא","type":"word"},{"en":"gray","he":"אפור","type":"word","alt":["אפורה"]},{"en":"green","he":"ירוק","type":"word","alt":["ירוקה"]},{"en":"ground","he":"אדמה","type":"word"},{"en":"group","he":"קבוצה","type":"word"},{"en":"guitar","he":"גיטרה","type":"word"},{"en":"hair","he":"שיער","type":"word"},{"en":"half past one / two / three","he":"אחת / שתיים / שלוש וחצי","type":"phrase"},{"en":"happy","he":"שמח","type":"word","alt":["שמחה"]},{"en":"have","he":"יש, להחזיק","type":"word"},{"en":"head","he":"ראש","type":"word"},{"en":"hear","he":"לשמוע","type":"word"},{"en":"heart","he":"לב","type":"word"},{"en":"heavy","he":"כבד","type":"word","alt":["כבדה"]},{"en":"help","he":"לעזור","type":"word"},{"en":"here","he":"כאן","type":"word"},{"en":"hers","he":"שלה","type":"word"},{"en":"hey","he":"היי","type":"word","alt":["הי"]},{"en":"hi","he":"שלום, היי","type":"word","alt":["הי"]},{"en":"his","he":"שלו","type":"word"},{"en":"hold","he":"להחזיק","type":"word"},{"en":"holiday","he":"חופשה, חג","type":"word"},{"en":"home","he":"בית","type":"word"},{"en":"homework","he":"שיעורי בית","type":"word"},{"en":"horse","he":"סוס","type":"word"},{"en":"hospital","he":"בית חולים","type":"word"},{"en":"hotel","he":"מלון","type":"word"},{"en":"house","he":"בית","type":"word"},{"en":"how","he":"איך","type":"word"},{"en":"How about ...?","he":"מה דעתך על...?","type":"phrase"},{"en":"hundred","he":"מאה","type":"word"},{"en":"hungry","he":"רעב","type":"word","alt":["רעבה"]},{"en":"husband","he":"בעל","type":"word"},{"en":"in","he":"בתוך","type":"word"},{"en":"inside","he":"בתוך, בפנים","type":"word"},{"en":"interesting","he":"מעניין","type":"word"},{"en":"into","he":"לתוך","type":"word"},{"en":"Israel","he":"ישראל","type":"word"},{"en":"it","he":"זה","type":"word"},{"en":"jacket","he":"ז'קט","type":"word"},{"en":"January","he":"ינואר","type":"word"},{"en":"juice","he":"מיץ","type":"word"},{"en":"July","he":"יולי","type":"word"},{"en":"June","he":"יוני","type":"word"},{"en":"just","he":"רק, פשוט","type":"word"},{"en":"keep","he":"לשמור","type":"word"},{"en":"king","he":"מלך","type":"word"},{"en":"leave","he":"לעזוב, להשאיר","type":"word"},{"en":"leg","he":"רגל","type":"word"},{"en":"lesson","he":"שיעור","type":"word"},{"en":"letter","he":"מכתב, אות","type":"word"},{"en":"lie","he":"לשכב, לשקר","type":"word"},{"en":"lie down","he":"להישכב","type":"phrase"},{"en":"life","he":"חיים","type":"word"},{"en":"light","he":"קל, בהיר","type":"word"},{"en":"like","he":"לאהוב","type":"word"},{"en":"line","he":"קו, שורה","type":"word"},{"en":"listen","he":"להקשיב","type":"word"},{"en":"little","he":"קטן","type":"word","alt":["קטנה"]},{"en":"live in/at","he":"לגור ב...","type":"phrase"},{"en":"look","he":"להסתכל","type":"word"},{"en":"lose","he":"לאבד, להפסיד","type":"word"},{"en":"lunch","he":"ארוחת צהריים","type":"word"},{"en":"make","he":"להכין, לעשות","type":"word"},{"en":"many","he":"הרבה","type":"word"},{"en":"March","he":"מרץ","type":"word"},{"en":"May","he":"מאי","type":"word"},{"en":"meal","he":"ארוחה","type":"word"},{"en":"meat","he":"בשר","type":"word"},{"en":"meet","he":"לפגוש","type":"word"},{"en":"minute","he":"דקה","type":"word"},{"en":"Miss","he":"עלמה (פנייה)","type":"word"},{"en":"mobile","he":"טלפון נייד","type":"word"},{"en":"Monday","he":"יום שני","type":"word"},{"en":"monkey","he":"קוף","type":"word"},{"en":"month","he":"חודש","type":"word"},{"en":"more","he":"יותר","type":"word"},{"en":"morning","he":"בוקר","type":"word"},{"en":"mother","he":"אמא","type":"word","alt":["אימא"]},{"en":"mouth","he":"פה","type":"word"},{"en":"movie","he":"סרט","type":"word"},{"en":"music","he":"מוזיקה","type":"word"},{"en":"my","he":"שלי","type":"word"},{"en":"name","he":"שם","type":"word"},{"en":"near","he":"קרוב","type":"word"},{"en":"neck","he":"צוואר","type":"word"},{"en":"need","he":"להזדקק","type":"word"},{"en":"neighbor","he":"שכן","type":"word"},{"en":"new","he":"חדש","type":"word","alt":["חדשה"]},{"en":"next week / year / Monday","he":"שבוע / שנה / יום שני הבא","type":"phrase"},{"en":"nice","he":"נחמד","type":"word","alt":["נחמדה"]},{"en":"night","he":"לילה","type":"word"},{"en":"nine","he":"תשע","type":"word","alt":["תשעה"]},{"en":"nineteen","he":"תשע-עשרה","type":"word"},{"en":"ninety","he":"תשעים","type":"word"},{"en":"nobody","he":"אף אחד","type":"word"},{"en":"noise","he":"רעש","type":"word"},{"en":"nose","he":"אף","type":"word"},{"en":"not very good / tall / happy","he":"לא כל כך טוב / גבוה / שמח","type":"phrase"},{"en":"notebook","he":"מחברת","type":"word"},{"en":"November","he":"נובמבר","type":"word"},{"en":"now","he":"עכשיו","type":"word"},{"en":"October","he":"אוקטובר","type":"word"},{"en":"office","he":"משרד","type":"word"},{"en":"often","he":"לעיתים קרובות","type":"word"},{"en":"old","he":"ישן, זקן","type":"word","alt":["ישנה","זקנה"]},{"en":"Olympic Games","he":"המשחקים האולימפיים","type":"phrase"},{"en":"on","he":"על, דלוק","type":"word"},{"en":"on the/your left / right","he":"בצד שמאל / ימין שלך","type":"phrase"},{"en":"once","he":"פעם אחת","type":"word"},{"en":"one","he":"אחת","type":"word","alt":["אחד"]},{"en":"only","he":"רק, בלבד","type":"word"},{"en":"or","he":"או","type":"word"},{"en":"orange","he":"כתום, תפוז","type":"word","alt":["כתומה"]},{"en":"our","he":"שלנו","type":"word"},{"en":"ours","he":"שלנו","type":"word"},{"en":"out","he":"בחוץ","type":"word"},{"en":"page","he":"עמוד","type":"word"},{"en":"paper","he":"נייר","type":"word"},{"en":"parent","he":"הורה","type":"word"},{"en":"park","he":"פארק, לחנות","type":"word"},{"en":"party","he":"מסיבה","type":"word"},{"en":"pass","he":"לעבור","type":"word"},{"en":"past","he":"עבר, אחרי","type":"word"},{"en":"people","he":"אנשים","type":"word"},{"en":"picnic","he":"פיקניק","type":"word"},{"en":"picture","he":"תמונה","type":"word"},{"en":"pink","he":"ורוד","type":"word","alt":["ורודה"]},{"en":"pizza","he":"פיצה","type":"word"},{"en":"place","he":"מקום","type":"word"},{"en":"plant","he":"צמח, לשתול","type":"word"},{"en":"plate","he":"צלחת","type":"word"},{"en":"play","he":"לשחק","type":"word"},{"en":"player","he":"שחקן","type":"word"},{"en":"please","he":"בבקשה","type":"word"},{"en":"poor","he":"עני, מסכן","type":"word","alt":["ענייה","מסכנה"]},{"en":"potato","he":"תפוח אדמה","type":"word"},{"en":"present","he":"מתנה","type":"word"},{"en":"price","he":"מחיר","type":"word"},{"en":"problem","he":"בעיה","type":"word"},{"en":"pupil","he":"תלמיד","type":"word"},{"en":"put sth down / in / on","he":"לשים / להכניס / להניח","type":"phrase"},{"en":"question","he":"שאלה","type":"word"},{"en":"radio","he":"רדיו","type":"word"},{"en":"rain","he":"גשם","type":"word"},{"en":"rainy","he":"גשום","type":"word"},{"en":"read","he":"לקרוא","type":"word"},{"en":"really","he":"באמת","type":"word"},{"en":"remember","he":"לזכור","type":"word"},{"en":"restaurant","he":"מסעדה","type":"word"},{"en":"rice","he":"אורז","type":"word"},{"en":"rich","he":"עשיר","type":"word","alt":["עשירה"]},{"en":"right","he":"נכון / ימין","type":"word"},{"en":"river","he":"נהר","type":"word"},{"en":"road","he":"כביש, דרך","type":"word"},{"en":"room","he":"חדר","type":"word"},{"en":"salad","he":"סלט","type":"word"},{"en":"salt","he":"מלח","type":"word"},{"en":"sandwich","he":"כריך","type":"word"},{"en":"sea","he":"ים","type":"word"},{"en":"seat","he":"מושב","type":"word"},{"en":"second","he":"שני (בסדר)","type":"word","alt":["שנייה","שניה"]},{"en":"see","he":"לראות","type":"word"},{"en":"see you later / soon / tomorrow","he":"נתראה מאוחר יותר / בקרוב / מחר","type":"phrase"},{"en":"sentence","he":"משפט","type":"word"},{"en":"September","he":"ספטמבר","type":"word"},{"en":"seven","he":"שבע","type":"word","alt":["שבעה"]},{"en":"seventeen","he":"שבע-עשרה","type":"word"},{"en":"seventy","he":"שבעים","type":"word"},{"en":"she","he":"היא","type":"word"},{"en":"sheep","he":"כבשה","type":"word"},{"en":"shoe","he":"נעל","type":"word"},{"en":"shoulder","he":"כתף","type":"word"},{"en":"show","he":"להראות / הופעה","type":"word"},{"en":"shut","he":"לסגור","type":"word"},{"en":"sick","he":"חולה","type":"word"},{"en":"sign","he":"שלט, סימן","type":"word"},{"en":"sing","he":"לשיר","type":"word"},{"en":"singer","he":"זמר","type":"word"},{"en":"sister","he":"אחות","type":"word"},{"en":"sixteen","he":"שש-עשרה","type":"word"},{"en":"sixty","he":"שישים","type":"word"},{"en":"sky","he":"שמיים","type":"word"},{"en":"slow","he":"איטי","type":"word"},{"en":"slowly","he":"לאט","type":"word"},{"en":"small","he":"קטן","type":"word","alt":["קטנה"]},{"en":"some","he":"כמה, קצת","type":"word"},{"en":"somebody","he":"מישהו","type":"word"},{"en":"someone","he":"מישהו","type":"word"},{"en":"something","he":"משהו","type":"word"},{"en":"sometimes","he":"לפעמים","type":"word"},{"en":"somewhere","he":"איפשהו","type":"word"},{"en":"son","he":"בן","type":"word"},{"en":"song","he":"שיר","type":"word"},{"en":"soon","he":"בקרוב","type":"word"},{"en":"sorry","he":"סליחה, מצטער","type":"word"},{"en":"speak","he":"לדבר","type":"word"},{"en":"spend","he":"לבלות, לבזבז","type":"word"},{"en":"sport","he":"ספורט","type":"word"},{"en":"spring","he":"אביב","type":"word"},{"en":"start","he":"להתחיל","type":"word"},{"en":"station","he":"תחנה (כמו תחנת אוטובוס)","type":"word"},{"en":"stay","he":"להישאר","type":"word"},{"en":"stop","he":"לעצור, תחנה","type":"word"},{"en":"store","he":"חנות","type":"word"},{"en":"story","he":"סיפור","type":"word"},{"en":"straight","he":"ישר","type":"word"},{"en":"street","he":"רחוב","type":"word"},{"en":"student","he":"תלמיד","type":"word"},{"en":"study","he":"ללמוד","type":"word"},{"en":"sugar","he":"סוכר","type":"word"},{"en":"summer","he":"קיץ","type":"word"},{"en":"Sunday","he":"יום ראשון","type":"word"},{"en":"sunny","he":"שטוף שמש","type":"word"},{"en":"supper","he":"ארוחת ערב","type":"word"},{"en":"table","he":"שולחן","type":"word"},{"en":"take","he":"לקחת","type":"word"},{"en":"tea","he":"תה","type":"word"},{"en":"teach","he":"ללמד","type":"word"},{"en":"teacher","he":"מורה","type":"word"},{"en":"telephone","he":"טלפון","type":"word"},{"en":"tenth","he":"עשירי","type":"word","alt":["עשירית"]},{"en":"the","he":"ה- (הידיעה)","type":"word"},{"en":"the rest","he":"השאר","type":"phrase"},{"en":"there","he":"שם","type":"word"},{"en":"these","he":"אלה","type":"word"},{"en":"thin","he":"דק, רזה","type":"word"},{"en":"thing","he":"דבר","type":"word"},{"en":"think","he":"לחשוב","type":"word"},{"en":"third","he":"שלישי","type":"word","alt":["שלישית"]},{"en":"thirteen","he":"שלוש-עשרה","type":"word"},{"en":"thirty","he":"שלושים","type":"word"},{"en":"this","he":"זה","type":"word"},{"en":"those","he":"אלה, ההם","type":"word"},{"en":"Thursday","he":"יום חמישי","type":"word"},{"en":"time","he":"זמן","type":"word"},{"en":"tired","he":"עייף","type":"word","alt":["עייפה"]},{"en":"to","he":"ל,... אל...","type":"word"},{"en":"today","he":"היום","type":"word"},{"en":"together","he":"ביחד","type":"word"},{"en":"tomorrow","he":"מחר","type":"word"},{"en":"tonight","he":"הלילה","type":"word"},{"en":"too","he":"מדי, גם","type":"word"},{"en":"too small / hard / much","he":"קטן / קשה / הרבה מדי","type":"phrase"},{"en":"tooth","he":"שן","type":"word"},{"en":"train","he":"רכבת","type":"word"},{"en":"travel","he":"לטייל","type":"word"},{"en":"tree","he":"עץ","type":"word"},{"en":"try","he":"לנסות","type":"word"},{"en":"Tuesday","he":"יום שלישי","type":"word"},{"en":"turn","he":"לפנות, להסתובב","type":"word"},{"en":"twelve","he":"שתים-עשרה","type":"word"},{"en":"twenty","he":"עשרים","type":"word"},{"en":"two","he":"שתיים","type":"word","alt":["שניים","שתים"]},{"en":"uncle","he":"דוד","type":"word"},{"en":"under","he":"מתחת","type":"word"},{"en":"understand","he":"להבין","type":"word"},{"en":"use","he":"להשתמש","type":"word"},{"en":"usually","he":"בדרך כלל","type":"word"},{"en":"vegetable","he":"ירק","type":"word"},{"en":"verb","he":"פועל","type":"word"},{"en":"very","he":"מאוד","type":"word"},{"en":"village","he":"כפר","type":"word"},{"en":"visit","he":"לבקר","type":"word"},{"en":"wait","he":"לחכות","type":"word"},{"en":"waiter","he":"מלצר","type":"word"},{"en":"waitress","he":"מלצרית","type":"word"},{"en":"walk","he":"ללכת","type":"word"},{"en":"wall","he":"קיר","type":"word"},{"en":"want","he":"לרצות","type":"word"},{"en":"warm","he":"חם, נעים","type":"word","alt":["חמה","נעימה"]},{"en":"wash","he":"לשטוף, לרחוץ","type":"word"},{"en":"watch","he":"לצפות / שעון (יד)","type":"word"},{"en":"water","he":"מים","type":"word"},{"en":"way","he":"דרך","type":"word"},{"en":"we","he":"אנחנו","type":"word"},{"en":"wear","he":"ללבוש","type":"word"},{"en":"weather","he":"מזג אוויר","type":"word"},{"en":"Wednesday","he":"יום רביעי","type":"word"},{"en":"week","he":"שבוע","type":"word"},{"en":"weekend","he":"סוף שבוע","type":"word"},{"en":"well","he":"היטב, ובכן","type":"word"},{"en":"west","he":"מערב","type":"word"},{"en":"what","he":"מה","type":"word"},{"en":"when","he":"מתי","type":"word"},{"en":"where","he":"איפה","type":"word"},{"en":"white","he":"לבן","type":"word","alt":["לבנה"]},{"en":"who","he":"מי","type":"word"},{"en":"why","he":"למה","type":"word"},{"en":"wife","he":"אישה (נשואה)","type":"word"},{"en":"win","he":"לנצח","type":"word"},{"en":"wind","he":"רוח","type":"word"},{"en":"window","he":"חלון","type":"word"},{"en":"windy","he":"עם רוח, סוער","type":"word"},{"en":"wine","he":"יין","type":"word"},{"en":"winner","he":"מנצח","type":"word"},{"en":"winter","he":"חורף","type":"word"},{"en":"with","he":"עם","type":"word"},{"en":"woman","he":"אישה","type":"word"},{"en":"word","he":"מילה","type":"word"},{"en":"work","he":"עבודה, לעבוד","type":"word"},{"en":"worker","he":"עובד","type":"word"},{"en":"world","he":"עולם","type":"word"},{"en":"would like sth/to do sth","he":"היה רוצה משהו / לעשות משהו","type":"phrase"},{"en":"Would you like ...?","he":"האם תרצה...?","type":"phrase"},{"en":"write","he":"לכתוב","type":"word"},{"en":"wrong","he":"לא נכון, טעות","type":"word"},{"en":"year","he":"שנה","type":"word"},{"en":"yellow","he":"צהוב","type":"word","alt":["צהובה"]},{"en":"yesterday","he":"אתמול","type":"word"},{"en":"young","he":"צעיר","type":"word","alt":["צעירה"]},{"en":"your","he":"שלך","type":"word"},{"en":"zoo","he":"גן חיות","type":"word"}];
+
+/* ---------- storage ---------- */
+const LS = {
+  get(k,d){ try{ return JSON.parse(localStorage.getItem(k)) ?? d }catch(e){ return d } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)) }catch(e){} }
+};
+const AVATARS = ['🦊','🐼','🦁','🐵','🐶','🐱','🦄','🐸','🐧','🐯','🐨','🐰','🐷','🐙','🦋'];
+function avatarFor(name){ let h=0; for(const c of name) h=(h*31+c.charCodeAt(0))>>>0; return AVATARS[h%AVATARS.length]; }
+
+function getPlayers(){ return LS.get('eq_players',{}); }
+function savePlayers(p){ LS.set('eq_players',p); }
+function getConfig(){
+  return Object.assign({enHe:50,heEn:20,open:30,perRound:10,phrases:true}, LS.get('eq_config',{}));
+}
+function saveConfig(c){ LS.set('eq_config',c); }
+
+let player = null;   // current player name
+let round = null;    // active round state
+
+/* ---------- speech ---------- */
+let voices = [];
+function loadVoices(){ try{ voices = window.speechSynthesis.getVoices()||[] }catch(e){} }
+if('speechSynthesis' in window){ loadVoices(); window.speechSynthesis.onvoiceschanged = loadVoices; }
+function cleanForSpeech(t){
+  return t.split('/')[0].replace(/\(.*?\)/g,'').replace(/\b(sth|swh|sb)\b/g,'').replace(/[?.]/g,'').trim();
+}
+function speak(text, btn){
+  if(!('speechSynthesis' in window)) return;
+  const u = new SpeechSynthesisUtterance(cleanForSpeech(text));
+  u.lang='en-US'; u.rate=0.88; u.pitch=1.05;
+  const v = voices.find(v=>/en[-_]?US/i.test(v.lang)) || voices.find(v=>v.lang && v.lang.toLowerCase().startsWith('en'));
+  if(v) u.voice=v;
+  window.speechSynthesis.cancel();
+  if(btn){ btn.classList.add('speaking'); u.onend=u.onerror=()=>btn.classList.remove('speaking'); }
+  window.speechSynthesis.speak(u);
+}
+
+/* ---------- helpers ---------- */
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const app = document.getElementById('app');
+function shuffle(a){ a=a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function playBtnHTML(text,cls=''){ return `<button class="play ${cls}" data-say="${esc(text)}" aria-label="השמע מילה">🔊</button>`; }
+
+/* normalise Hebrew for open-answer grading */
+function normHe(s){
+  return String(s)
+    .replace(/[֑-ׇ]/g,'')      // niqqud
+    .replace(/[.,;:!?"'׳״״`]/g,'')
+    .replace(/[()]/g,'')
+    .replace(/[-–—־]/g,' ')     // hyphens/maqaf -> space (e.g. תשע-עשרה)
+    .replace(/\s+/g,' ').trim();
+}
+function acceptableAnswers(he, alt){
+  let list = he.split(/[\/,]/).map(p=>p.replace(/\(.*?\)/g,''));
+  if(Array.isArray(alt)) list = list.concat(alt);
+  return list.map(normHe).filter(Boolean);
+}
+
+/* ---------- LOGIN ---------- */
+function showLogin(){
+  const players = getPlayers();
+  const names = Object.keys(players);
+  let cards = names.map(n=>`
+    <div class="player-card" data-name="${esc(n)}">
+      <button class="del" data-del="${esc(n)}" aria-label="מחק">✕</button>
+      <div class="avatar">${avatarFor(n)}</div>
+      <div class="pname">${esc(n)}</div>
+      <div class="pbest">שיא: ${players[n].bestScore||0} ⭐</div>
+    </div>`).join('');
+  app.innerHTML = `
+    <div class="screen">
+      <div class="title">🎈 משחק אנגלית</div>
+      <div class="subtitle">מי משחק היום?</div>
+      <div class="card">
+        ${names.length? `<div class="players">${cards}</div>` : `<div class="subtitle" style="margin:6px 0 0">עדיין אין שחקנים — הוסף/י את עצמך 👇</div>`}
+        <div class="newrow">
+          <input class="text-input" id="newName" placeholder="שם חדש..." maxlength="16" autocomplete="off">
+          <button class="btn btn-primary" style="width:auto; padding:14px 20px" id="addBtn">בוא/י!</button>
+        </div>
+      </div>
+    </div>`;
+  app.querySelectorAll('.player-card').forEach(c=>{
+    c.addEventListener('click',e=>{ if(e.target.closest('.del')) return; login(c.dataset.name); });
+  });
+  app.querySelectorAll('[data-del]').forEach(b=> b.addEventListener('click',e=>{
+    e.stopPropagation();
+    const n=b.dataset.del;
+    if(confirm(`למחוק את "${n}" ואת כל הנתונים שלו/ה?`)){ const p=getPlayers(); delete p[n]; savePlayers(p); showLogin(); }
+  }));
+  const add=()=>{ const v=document.getElementById('newName').value.trim(); if(v) login(v); };
+  document.getElementById('addBtn').addEventListener('click',add);
+  document.getElementById('newName').addEventListener('keydown',e=>{ if(e.key==='Enter') add(); });
+}
+function login(name){
+  const p=getPlayers();
+  if(!p[name]) p[name]={bestScore:0,bestStreak:0,games:0};
+  savePlayers(p);
+  player=name;
+  LS.set('eq_last',name);
+  showHome();
+}
+
+/* ---------- HOME ---------- */
+function showHome(){
+  round=null;   // leaving the quiz; stop the global Enter handler acting on it
+  const p=getPlayers()[player];
+  app.innerHTML = `
+    <div class="screen">
+      <div class="hero"><div class="avatar">${avatarFor(player)}</div><div class="hi">שלום, ${esc(player)}!</div></div>
+      <div class="statsrow">
+        <div class="stat-card score"><div class="big">${p.bestScore||0}</div><div class="lbl">⭐ שיא נקודות</div></div>
+        <div class="stat-card streak"><div class="big">${p.bestStreak||0}</div><div class="lbl">🔥 רצף שיא</div></div>
+      </div>
+      <div class="stack">
+        <button class="btn btn-primary" id="startBtn">▶ התחל משחק</button>
+        <button class="btn btn-ghost" id="cfgBtn">⚙️ הגדרות</button>
+        <button class="btn btn-ghost" id="outBtn">🔄 החלף שחקן</button>
+      </div>
+    </div>`;
+  document.getElementById('startBtn').onclick=startRound;
+  document.getElementById('cfgBtn').onclick=showConfig;
+  document.getElementById('outBtn').onclick=()=>{ player=null; showLogin(); };
+}
+
+/* ---------- CONFIG ---------- */
+function showConfig(){
+  const c=getConfig();
+  app.innerHTML = `
+    <div class="screen">
+      <div class="title" style="font-size:1.6rem">⚙️ הגדרות</div>
+      <div class="subtitle">כמה מכל סוג שאלה?</div>
+      <div class="card">
+        <div class="field">
+          <div class="flabel"><span>🇬🇧➜🇮🇱 אנגלית לעברית (בחירה)</span><span class="pct" id="p1">0%</span></div>
+          <input type="range" id="s1" min="0" max="100" step="10" value="${c.enHe}">
+        </div>
+        <div class="field">
+          <div class="flabel"><span>🇮🇱➜🇬🇧 עברית לאנגלית (בחירה)</span><span class="pct" id="p2">0%</span></div>
+          <input type="range" id="s2" min="0" max="100" step="10" value="${c.heEn}">
+        </div>
+        <div class="field">
+          <div class="flabel"><span>✍️ כתיבה (אנגלית ➜ הקלד/י עברית)</span><span class="pct" id="p3">0%</span></div>
+          <input type="range" id="s3" min="0" max="100" step="10" value="${c.open}">
+        </div>
+        <div class="field">
+          <div class="flabel"><span>מספר שאלות במשחק</span></div>
+          <div class="seg" id="seg">
+            ${[10,20,30].map(n=>`<button data-n="${n}" class="${c.perRound===n?'on':''}">${n}</button>`).join('')}
+          </div>
+        </div>
+        <div class="toggle-row">
+          <div><div style="font-weight:600">כלול ביטויים</div><div class="hint">כמו "Olympic Games", "see you later"</div></div>
+          <label class="switch"><input type="checkbox" id="phr" ${c.phrases?'checked':''}><span class="slider"></span></label>
+        </div>
+      </div>
+      <div class="stack">
+        <button class="btn btn-primary" id="saveCfg">שמור וחזור</button>
+        <button class="btn btn-ghost" id="backCfg">חזרה</button>
+      </div>
+    </div>`;
+  const s1=document.getElementById('s1'),s2=document.getElementById('s2'),s3=document.getElementById('s3');
+  const sls=[s1,s2,s3];
+  const refresh=()=>{
+    document.getElementById('p1').textContent=s1.value+'%';
+    document.getElementById('p2').textContent=s2.value+'%';
+    document.getElementById('p3').textContent=s3.value+'%';
+  };
+  sls.forEach(sl=>sl.addEventListener('input',()=>{
+    // cap so the three never exceed 100%; never auto-change the others
+    const others=sls.filter(x=>x!==sl).reduce((s,x)=>s+ +x.value,0);
+    const max=100-others;
+    if(+sl.value>max) sl.value=max;
+    refresh();
+  }));
+  refresh();
+  let per=c.perRound;
+  app.querySelectorAll('#seg button').forEach(b=>b.onclick=()=>{ per=+b.dataset.n; app.querySelectorAll('#seg button').forEach(x=>x.classList.remove('on')); b.classList.add('on'); });
+  document.getElementById('saveCfg').onclick=()=>{
+    let a=+s1.value,b=+s2.value,d=+s3.value;
+    if(a+b+d===0){ a=1; }  // avoid all-zero
+    saveConfig({enHe:a,heEn:b,open:d,perRound:per,phrases:document.getElementById('phr').checked});
+    showHome();
+  };
+  document.getElementById('backCfg').onclick=showHome;
+}
+
+/* ---------- ROUND ---------- */
+function pickType(c){
+  const w=[['enHe',c.enHe],['heEn',c.heEn],['open',c.open]];
+  const t=w.reduce((s,x)=>s+x[1],0)||1; let r=Math.random()*t;
+  for(const [k,v] of w){ if(r<v) return k; r-=v; }
+  return 'enHe';
+}
+function buildQuestion(type, pool, wordPool){
+  const src = type==='open' ? wordPool : pool;
+  const target = src[Math.floor(Math.random()*src.length)];
+  if(type==='open') return {type, target};
+  const field = type==='enHe' ? 'he' : 'en';
+  const correct = target[field];
+  const seen=new Set([correct]); const distractors=[];
+  const bag=shuffle(pool);
+  for(const w of bag){ if(distractors.length>=3) break; const val=w[field]; if(!seen.has(val)){ seen.add(val); distractors.push(val); } }
+  const options=shuffle([correct,...distractors]);
+  return {type, target, field, correct, options};
+}
+function startRound(){
+  const c=getConfig();
+  const pool = c.phrases ? WORDS : WORDS.filter(w=>w.type==='word');
+  const wordPool = WORDS.filter(w=>w.type==='word');
+  const n=c.perRound;
+  const qs=[];
+  for(let i=0;i<n;i++){ qs.push(buildQuestion(pickType(c), pool, wordPool)); }
+  round={qs, i:0, score:0, streak:0, best:0, correct:0, cfg:c};
+  showQuestion();
+}
+
+function hud(){
+  const pct = Math.round(round.i/round.qs.length*100);
+  return `
+    <div class="hud">
+      <button class="icon-btn" id="quitBtn" aria-label="יציאה">✕</button>
+      <div class="spacer"></div>
+      <div class="chip"><span class="em">⭐</span><span id="score">${round.score}</span></div>
+      <div class="chip"><span class="em">🔥</span><span id="streak">${round.streak}</span></div>
+    </div>
+    <div class="progress"><div class="progress-bar" style="width:${pct}%"></div></div>`;
+}
+
+function showQuestion(){
+  const q=round.qs[round.i];
+  round.phase='question';
+  let body='';
+  if(q.type==='open'){
+    body=`
+      <div class="q-label">מה התרגום לעברית?</div>
+      <div class="prompt-box">
+        <div class="prompt english en">${esc(cleanForSpeech(q.target.en))}</div>
+        ${playBtnHTML(q.target.en)}
+      </div>
+      <input class="answer-input" id="ans" dir="rtl" placeholder="הקלד/י כאן..." autocomplete="off" autocapitalize="off">
+      <div id="fb"></div>
+      <div class="stack"><button class="btn btn-primary" id="go">בדיקה</button></div>`;
+  } else if(q.type==='enHe'){
+    body=`
+      <div class="q-label">מה התרגום לעברית?</div>
+      <div class="prompt-box">
+        <div class="prompt english en">${esc(cleanForSpeech(q.target.en))}</div>
+        ${playBtnHTML(q.target.en)}
+      </div>
+      <div class="options" id="opts">
+        ${q.options.map((o,idx)=>`<button class="opt" data-idx="${idx}">${esc(o)}</button>`).join('')}
+      </div>
+      <div id="fb"></div>`;
+  } else { // heEn
+    body=`
+      <div class="q-label">מה המילה באנגלית?</div>
+      <div class="prompt-box"><div class="prompt">${esc(q.target.he)}</div></div>
+      <div class="options" id="opts">
+        ${q.options.map((o,idx)=>`<button class="opt" data-idx="${idx}"><span class="opt-en en">${esc(o)}</span>${playBtnHTML(o,'sm')}</button>`).join('')}
+      </div>
+      <div id="fb"></div>`;
+  }
+  app.innerHTML=`<div class="screen">${hud()}<div class="card">${body}</div></div>`;
+  document.getElementById('quitBtn').onclick=quitRound;
+
+  if(q.type==='open'){
+    document.getElementById('ans').focus();
+    document.getElementById('go').onclick=checkOpen;
+    // Enter is handled globally (see keydown listener) so a single press
+    // checks the answer instead of racing ahead to the next question.
+  } else {
+    app.querySelectorAll('.opt').forEach(b=> b.addEventListener('click',()=>answerMC(+b.dataset.idx)));
+  }
+}
+
+function answerMC(idx){
+  const q=round.qs[round.i];
+  const btns=[...app.querySelectorAll('.opt')];
+  const chosen=q.options[idx];
+  const ok = chosen===q.correct;
+  btns.forEach((b,i)=>{
+    b.disabled=true;
+    if(q.options[i]===q.correct) b.classList.add('correct');
+    else if(i===idx) b.classList.add('wrong');
+    else b.classList.add('dim');
+  });
+  registerAnswer(ok, q);
+}
+function checkOpen(){
+  const q=round.qs[round.i];
+  const inp=document.getElementById('ans');
+  const val=normHe(inp.value);
+  if(!val) return;
+  const ok=acceptableAnswers(q.target.he, q.target.alt).includes(val);
+  inp.disabled=true; inp.classList.add(ok?'correct':'wrong');
+  document.getElementById('go').style.display='none';
+  registerAnswer(ok, q, true);
+}
+
+function registerAnswer(ok, q, isOpen){
+  round.phase='feedback';
+  if(ok){
+    round.correct++; round.streak++; round.best=Math.max(round.best,round.streak);
+    round.score += 10 + Math.min(round.streak-1,5)*2;
+  } else {
+    round.streak=0;
+  }
+  document.getElementById('score').textContent=round.score;
+  document.getElementById('streak').textContent=round.streak;
+
+  const answerLine = q.type==='heEn'
+    ? `<span class="ans"><span class="en">${esc(q.correct)}</span>${playBtnHTML(q.correct,'sm')}</span>`
+    : `<span class="he-ans">${esc(q.type==='open'? q.target.he : q.correct)}</span>`;
+  const fb=document.getElementById('fb');
+  fb.innerHTML = ok
+    ? `<div class="banner ok">🎉 ${['כל הכבוד!','מצוין!','נכון מאוד!','יופי!','אלוף/ה!'][Math.floor(Math.random()*5)]}</div>`
+    : `<div class="banner no">🙈 כמעט! התשובה: ${answerLine}</div>`;
+  const next=document.createElement('div');
+  next.className='stack';
+  const last = round.i>=round.qs.length-1;
+  next.innerHTML=`<button class="btn btn-primary" id="next">${last?'לסיום 🏁':'המשך ➜'}</button>`;
+  fb.appendChild(next);
+  bindPlay(fb);
+  document.getElementById('next').onclick=advance;
+}
+function advance(){
+  round.i++;
+  if(round.i>=round.qs.length) showResults();
+  else showQuestion();
+}
+function quitRound(){ if(confirm('לצאת מהמשחק? ההתקדמות תאבד.')) showHome(); }
+
+/* ---------- RESULTS ---------- */
+function showResults(){
+  round.phase='done';
+  const total=round.qs.length, correct=round.correct, score=round.score;
+  const rate=correct/total;
+  const p=getPlayers(); const me=p[player];
+  const newScore = score>(me.bestScore||0);
+  const newStreak = round.best>(me.bestStreak||0);
+  me.bestScore=Math.max(me.bestScore||0,score);
+  me.bestStreak=Math.max(me.bestStreak||0,round.best);
+  me.games=(me.games||0)+1;
+  savePlayers(p);
+
+  let emoji='🎯', title='כל הכבוד!';
+  if(rate===1){ emoji='🏆'; title='מושלם!'; }
+  else if(rate>=0.7){ emoji='🌟'; title='עבודה יפה!'; }
+  else if(rate>=0.4){ emoji='💪'; title='ממשיכים להתאמן!'; }
+  else { emoji='🌱'; title='כל התחלה קשה!'; }
+
+  app.innerHTML=`
+    <div class="screen">
+      <div class="card">
+        <div class="result-emoji">${emoji}</div>
+        <div class="result-title">${title}</div>
+        ${(newScore||newStreak)?`<div class="record">🎉 שיא חדש${newScore&&newStreak?' בנקודות וברצף!':newScore?' בנקודות!':' ברצף!'}</div>`:''}
+        <div class="statsrow" style="margin-top:0">
+          <div class="stat-card score"><div class="big">${score}</div><div class="lbl">⭐ נקודות</div></div>
+          <div class="stat-card streak"><div class="big">${round.best}</div><div class="lbl">🔥 רצף שיא</div></div>
+        </div>
+        <div class="stat-card" style="margin-top:12px"><div class="big" style="color:var(--ink)">${correct}/${total}</div><div class="lbl">תשובות נכונות</div></div>
+      </div>
+      <div class="stack">
+        <button class="btn btn-primary" id="again">▶ שוב!</button>
+        <button class="btn btn-ghost" id="home">🏠 תפריט ראשי</button>
+      </div>
+    </div>`;
+  document.getElementById('again').onclick=startRound;
+  document.getElementById('home').onclick=showHome;
+  if(rate>=0.7 || newScore || newStreak) confetti();
+}
+
+/* ---------- confetti ---------- */
+function confetti(){
+  const box=document.getElementById('confetti');
+  const em=['🎉','⭐','🎈','✨','🌟','🎊'];
+  for(let i=0;i<36;i++){
+    const s=document.createElement('div');
+    s.className='conf'; s.textContent=em[Math.floor(Math.random()*em.length)];
+    s.style.left=Math.random()*100+'%';
+    s.style.animationDuration=(2+Math.random()*2)+'s';
+    s.style.animationDelay=(Math.random()*0.6)+'s';
+    s.style.fontSize=(1.1+Math.random()*1.4)+'rem';
+    box.appendChild(s);
+    setTimeout(()=>s.remove(),4200);
+  }
+}
+
+/* ---------- global play delegation ---------- */
+function bindPlay(root){ root.querySelectorAll('.play').forEach(b=>{ if(b._bound) return; b._bound=1; b.addEventListener('click',e=>{ e.stopPropagation(); speak(b.dataset.say,b); }); }); }
+new MutationObserver(()=>bindPlay(document)).observe(app,{childList:true,subtree:true});
+
+/* ---------- Enter key: one press = one action, no double-fire ---------- */
+document.addEventListener('keydown',e=>{
+  if(e.key!=='Enter' || !round) return;
+  if(round.phase==='feedback'){ e.preventDefault(); advance(); }
+  else if(round.phase==='question' && round.qs[round.i].type==='open'){ e.preventDefault(); checkOpen(); }
+});
+
+/* ---------- go ---------- */
+showLogin();
+</script>
+</body>
+</html>

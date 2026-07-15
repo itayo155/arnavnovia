@@ -26,6 +26,10 @@ services:
     buildCommand: echo "No build needed for static HTML"
     staticPublishPath: ./arnavnovia-front/HTML
     routes:
+      # English learning game (clean URL without the .html extension)
+      - type: rewrite
+        source: /english
+        destination: /english.html
       - type: rewrite
         source: /*
         destination: /index.html
