@@ -135,6 +135,16 @@
   .switch input:checked + .slider:before{transform:translateX(-24px)}
   .hint{color:var(--muted); font-size:.85rem; margin-top:4px}
 
+  /* Spaced-repetition */
+  .rev-badge{display:inline-block; background:#fff3e0; color:#c2410c; border-radius:999px; padding:2px 10px; font-size:.8rem; font-weight:700; margin-inline-end:6px}
+  .rev-row{display:flex; align-items:center; gap:10px; padding:12px 6px; border-bottom:1px solid var(--line)}
+  .rev-row:last-child{border-bottom:none}
+  .rev-word{display:flex; align-items:center; gap:8px; flex:0 0 auto; min-width:120px; font-weight:700; font-family:'Fredoka','Rubik',sans-serif}
+  .rev-he{flex:1; color:var(--ink); text-align:start}
+  .dots{display:flex; gap:5px; flex:0 0 auto}
+  .dot{width:10px; height:10px; border-radius:50%; background:var(--line)}
+  .dot.on{background:var(--success)}
+
   /* Results */
   .result-emoji{font-size:4.5rem; text-align:center; line-height:1; margin-bottom:6px}
   .result-title{text-align:center; font-size:1.9rem; font-weight:700; font-family:'Fredoka',sans-serif; margin-bottom:16px}
@@ -163,9 +173,36 @@ function avatarFor(name){ let h=0; for(const c of name) h=(h*31+c.charCodeAt(0))
 function getPlayers(){ return LS.get('eq_players',{}); }
 function savePlayers(p){ LS.set('eq_players',p); }
 function getConfig(){
-  return Object.assign({enHe:50,heEn:20,open:30,perRound:10,phrases:true}, LS.get('eq_config',{}));
+  return Object.assign({enHe:60,heEn:30,open:10,perRound:10,phrases:true,review:true}, LS.get('eq_config',{}));
 }
 function saveConfig(c){ LS.set('eq_config',c); }
+
+/* ---------- spaced repetition (Leitner boxes) ----------
+   Each word a player missed enters a practice pool at box 0. A correct answer
+   promotes it a box (with a growing gap before it's due again); a wrong answer
+   knocks it back. Reaching SR_LEARNED graduates it out of the pool. Spacing is
+   measured in "questions answered" (pd.counter), not clock time. */
+const SR_INTERVAL = [3,6,14,30];  // gap (in questions) before a box 0..3 word is due again
+const SR_LEARNED = 4;             // box >= this => learnt (leaves the pool)
+function ensurePlayer(pd){ if(!pd) return pd; if(typeof pd.counter!=='number') pd.counter=0; if(!pd.words) pd.words={}; return pd; }
+function activePool(pd){ return Object.entries(pd.words||{}).filter(([_,w])=>!w.learned).map(([en,w])=>({en,...w})); }
+function dueWords(pd){ return activePool(pd).filter(w=>w.dueAt<=pd.counter).sort((a,b)=> (a.dueAt-b.dueAt) || (a.box-b.box)); }
+function reviewFraction(n){ return n<=0 ? 0 : Math.min(0.5, Math.max(0.10, n*0.06)); }
+// update a word's SR state after an answer; a first miss creates the entry
+function recordAnswer(pd, en, ok){
+  let w = pd.words[en];
+  if(!ok){
+    if(!w) w = pd.words[en] = {correct:0, wrong:0, box:0, dueAt:0, learned:false};
+    w.wrong++; w.learned=false;
+    w.box = Math.max(0, w.box-1);
+    w.dueAt = pd.counter + SR_INTERVAL[0];        // missed -> bring it back soon
+  } else if(w && !w.learned){
+    w.correct++; w.box++;
+    if(w.box>=SR_LEARNED){ w.learned=true; w.dueAt=pd.counter+999999; }
+    else w.dueAt = pd.counter + SR_INTERVAL[w.box];
+  }
+  // correct answer on a never-missed or already-learnt word = no-op
+}
 
 let player = null;   // current player name
 let round = null;    // active round state
@@ -246,7 +283,8 @@ function showLogin(){
 }
 function login(name){
   const p=getPlayers();
-  if(!p[name]) p[name]={bestScore:0,bestStreak:0,games:0};
+  if(!p[name]) p[name]={bestScore:0,bestStreak:0,games:0,counter:0,words:{}};
+  ensurePlayer(p[name]);
   savePlayers(p);
   player=name;
   LS.set('eq_last',name);
@@ -256,7 +294,8 @@ function login(name){
 /* ---------- HOME ---------- */
 function showHome(){
   round=null;   // leaving the quiz; stop the global Enter handler acting on it
-  const p=getPlayers()[player];
+  const p=ensurePlayer(getPlayers()[player]);
+  const practicing=activePool(p).length;
   app.innerHTML = `
     <div class="screen">
       <div class="hero"><div class="avatar">${avatarFor(player)}</div><div class="hi">שלום, ${esc(player)}!</div></div>
@@ -266,6 +305,7 @@ function showHome(){
       </div>
       <div class="stack">
         <button class="btn btn-primary" id="startBtn">▶ התחל משחק</button>
+        ${practicing>0?`<button class="btn btn-ghost" id="revBtn">🔁 מילים בתרגול: ${practicing}</button>`:''}
         <button class="btn btn-ghost" id="cfgBtn">⚙️ הגדרות</button>
         <button class="btn btn-ghost" id="outBtn">🔄 החלף שחקן</button>
       </div>
@@ -273,6 +313,31 @@ function showHome(){
   document.getElementById('startBtn').onclick=startRound;
   document.getElementById('cfgBtn').onclick=showConfig;
   document.getElementById('outBtn').onclick=()=>{ player=null; showLogin(); };
+  const rb=document.getElementById('revBtn'); if(rb) rb.onclick=showReviewList;
+}
+
+/* ---------- REVIEW LIST ---------- */
+function showReviewList(){
+  const pd=ensurePlayer(getPlayers()[player]);
+  const byEn={}; WORDS.forEach(w=>byEn[w.en]=w);
+  const list=activePool(pd).sort((a,b)=> (a.box-b.box) || (b.wrong-a.wrong));
+  const rows=list.map(w=>{
+    const word=byEn[w.en]||{en:w.en,he:''};
+    const dots=[0,1,2,3].map(i=>`<span class="dot ${i<w.box?'on':''}"></span>`).join('');
+    return `<div class="rev-row">
+      <div class="rev-word"><span class="en">${esc(word.en)}</span>${playBtnHTML(word.en,'sm')}</div>
+      <div class="rev-he">${esc(word.he)}</div>
+      <div class="dots" title="${w.box}/${SR_LEARNED}">${dots}</div>
+    </div>`;
+  }).join('');
+  app.innerHTML=`
+    <div class="screen">
+      <div class="title" style="font-size:1.5rem">🔁 מילים בתרגול</div>
+      <div class="subtitle">${list.length} מילים שעוד לומדים — הנקודות מראות התקדמות</div>
+      <div class="card" style="padding:8px 14px">${rows||'<div class="subtitle" style="margin:14px 0">אין מילים בתרגול 🎉</div>'}</div>
+      <div class="stack"><button class="btn btn-ghost" id="back">חזרה</button></div>
+    </div>`;
+  document.getElementById('back').onclick=showHome;
 }
 
 /* ---------- CONFIG ---------- */
@@ -305,6 +370,10 @@ function showConfig(){
           <div><div style="font-weight:600">כלול ביטויים</div><div class="hint">כמו "Olympic Games", "see you later"</div></div>
           <label class="switch"><input type="checkbox" id="phr" ${c.phrases?'checked':''}><span class="slider"></span></label>
         </div>
+        <div class="toggle-row">
+          <div><div style="font-weight:600">תרגול טעויות 🔁</div><div class="hint">חזרה מרווחת על מילים שטעית בהן, עד שנלמדות</div></div>
+          <label class="switch"><input type="checkbox" id="rev" ${c.review!==false?'checked':''}><span class="slider"></span></label>
+        </div>
       </div>
       <div class="stack">
         <button class="btn btn-primary" id="saveCfg">שמור וחזור</button>
@@ -331,39 +400,78 @@ function showConfig(){
   document.getElementById('saveCfg').onclick=()=>{
     let a=+s1.value,b=+s2.value,d=+s3.value;
     if(a+b+d===0){ a=1; }  // avoid all-zero
-    saveConfig({enHe:a,heEn:b,open:d,perRound:per,phrases:document.getElementById('phr').checked});
+    saveConfig({enHe:a,heEn:b,open:d,perRound:per,phrases:document.getElementById('phr').checked,review:document.getElementById('rev').checked});
     showHome();
   };
   document.getElementById('backCfg').onclick=showHome;
 }
 
 /* ---------- ROUND ---------- */
-function pickType(c){
-  const w=[['enHe',c.enHe],['heEn',c.heEn],['open',c.open]];
-  const t=w.reduce((s,x)=>s+x[1],0)||1; let r=Math.random()*t;
-  for(const [k,v] of w){ if(r<v) return k; r-=v; }
-  return 'enHe';
+function enabledTypes(c){ return [['enHe',c.enHe],['heEn',c.heEn],['open',c.open]].filter(x=>x[1]>0); }
+function weightedPick(pairs){ // pairs: [[key,weight],...]
+  const t=pairs.reduce((s,x)=>s+x[1],0)||1; let r=Math.random()*t;
+  for(const [k,v] of pairs){ if(r<v) return k; r-=v; }
+  return pairs[0] ? pairs[0][0] : 'enHe';
 }
-function buildQuestion(type, pool, wordPool){
-  const src = type==='open' ? wordPool : pool;
-  const target = src[Math.floor(Math.random()*src.length)];
-  if(type==='open') return {type, target};
+function pickType(c){ const e=enabledTypes(c); return e.length? weightedPick(e) : 'enHe'; }
+// choose a valid type for a specific word (phrases can't be typed)
+function pickTypeFor(word,c){
+  let e=enabledTypes(c);
+  if(word.type!=='word') e=e.filter(x=>x[0]!=='open');
+  if(!e.length) e = word.type==='word' ? [['enHe',1]] : [['enHe',1]];
+  return weightedPick(e);
+}
+function buildQuestion(type, pool, wordPool, forced, review, exclude){
+  let target=forced;
+  if(!target){
+    const src = type==='open' ? wordPool : pool;
+    for(let t=0;t<25 && !target;t++){ const cand=src[Math.floor(Math.random()*src.length)]; if(!exclude || !exclude.has(cand.en)) target=cand; }
+    if(!target){ const src2=type==='open'?wordPool:pool; target=src2[Math.floor(Math.random()*src2.length)]; }
+  }
+  if(type==='open') return {type, target, review:!!review};
   const field = type==='enHe' ? 'he' : 'en';
   const correct = target[field];
   const seen=new Set([correct]); const distractors=[];
   const bag=shuffle(pool);
   for(const w of bag){ if(distractors.length>=3) break; const val=w[field]; if(!seen.has(val)){ seen.add(val); distractors.push(val); } }
   const options=shuffle([correct,...distractors]);
-  return {type, target, field, correct, options};
+  return {type, target, field, correct, options, review:!!review};
+}
+// place review questions spread evenly through the round; each appears once
+function buildOrder(normals, reviews){
+  const total=normals.length+reviews.length;
+  const slots=new Array(total).fill(null);
+  reviews.forEach((rv,i)=>{
+    let idx=Math.min(total-1, Math.floor((i+0.5)*total/reviews.length));
+    while(slots[idx]!==null) idx=(idx+1)%total;
+    slots[idx]=rv;
+  });
+  let n=0;
+  for(let i=0;i<total;i++){ if(slots[i]===null) slots[i]=normals[n++]; }
+  return slots;
 }
 function startRound(){
   const c=getConfig();
+  const pd=ensurePlayer(getPlayers()[player]);
   const pool = c.phrases ? WORDS : WORDS.filter(w=>w.type==='word');
   const wordPool = WORDS.filter(w=>w.type==='word');
-  const n=c.perRound;
-  const qs=[];
-  for(let i=0;i<n;i++){ qs.push(buildQuestion(pickType(c), pool, wordPool)); }
-  round={qs, i:0, score:0, streak:0, best:0, correct:0, cfg:c};
+  const byEn={}; WORDS.forEach(w=>byEn[w.en]=w);
+  const N=c.perRound;
+
+  // spaced-repetition: pick due practice words, scaling the share with pool size
+  let reviewTargets=[];
+  if(c.review!==false){
+    const active=activePool(pd);
+    const due=dueWords(pd);
+    const slots=Math.min(Math.round(N*reviewFraction(active.length)), due.length, N);
+    reviewTargets=due.slice(0,slots).map(w=>byEn[w.en]).filter(Boolean);
+  }
+  const exclude=new Set(reviewTargets.map(w=>w.en));
+  const reviewQs=reviewTargets.map(tw=>buildQuestion(pickTypeFor(tw,c), pool, wordPool, tw, true));
+  const normalQs=[];
+  for(let i=0;i<N-reviewQs.length;i++){ normalQs.push(buildQuestion(pickType(c), pool, wordPool, null, false, exclude)); }
+
+  round={qs:buildOrder(normalQs, reviewQs), i:0, score:0, streak:0, best:0, correct:0, cfg:c};
   showQuestion();
 }
 
@@ -382,10 +490,11 @@ function hud(){
 function showQuestion(){
   const q=round.qs[round.i];
   round.phase='question';
+  const rev = q.review ? '<span class="rev-badge">🔁 תרגול</span>' : '';
   let body='';
   if(q.type==='open'){
     body=`
-      <div class="q-label">מה התרגום לעברית?</div>
+      <div class="q-label">${rev}מה התרגום לעברית?</div>
       <div class="prompt-box">
         <div class="prompt english en">${esc(cleanForSpeech(q.target.en))}</div>
         ${playBtnHTML(q.target.en)}
@@ -395,7 +504,7 @@ function showQuestion(){
       <div class="stack"><button class="btn btn-primary" id="go">בדיקה</button></div>`;
   } else if(q.type==='enHe'){
     body=`
-      <div class="q-label">מה התרגום לעברית?</div>
+      <div class="q-label">${rev}מה התרגום לעברית?</div>
       <div class="prompt-box">
         <div class="prompt english en">${esc(cleanForSpeech(q.target.en))}</div>
         ${playBtnHTML(q.target.en)}
@@ -406,7 +515,7 @@ function showQuestion(){
       <div id="fb"></div>`;
   } else { // heEn
     body=`
-      <div class="q-label">מה המילה באנגלית?</div>
+      <div class="q-label">${rev}מה המילה באנגלית?</div>
       <div class="prompt-box"><div class="prompt">${esc(q.target.he)}</div></div>
       <div class="options" id="opts">
         ${q.options.map((o,idx)=>`<button class="opt" data-idx="${idx}"><span class="opt-en en">${esc(o)}</span>${playBtnHTML(o,'sm')}</button>`).join('')}
@@ -452,6 +561,11 @@ function checkOpen(){
 
 function registerAnswer(ok, q, isOpen){
   round.phase='feedback';
+  // persist spaced-repetition state + exposure counter after every answer
+  const players=getPlayers(); const pd=ensurePlayer(players[player]);
+  pd.counter=(pd.counter||0)+1;
+  recordAnswer(pd, q.target.en, ok);
+  savePlayers(players);
   if(ok){
     round.correct++; round.streak++; round.best=Math.max(round.best,round.streak);
     round.score += 10 + Math.min(round.streak-1,5)*2;
