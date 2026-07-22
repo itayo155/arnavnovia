@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>הטניס של הבן — iTennis</title>
+<link rel="icon" id="fav" href="data:image/png;base64,iVBORw0KGgo=">
+<style>
+  :root{
+    --bg:#0f1720; --card:#182430; --card2:#1f2f3d; --line:#2a3d4d;
+    --txt:#e8eef4; --muted:#8fa3b3; --accent:#4ea1ff; --win:#3ecf8e;
+    --lose:#ff6b6b; --live:#ffb020; --soon:#4ea1ff; --new:#ffb020;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+       background:var(--bg);color:var(--txt);line-height:1.4;-webkit-text-size-adjust:100%}
+  header{padding:16px 16px 10px;position:sticky;top:0;background:linear-gradient(#0f1720,#0f1720ee);z-index:5;border-bottom:1px solid var(--line)}
+  h1{font-size:19px;margin:0 0 2px} .sub{color:var(--muted);font-size:13px}
+  .wrap{max-width:720px;margin:0 auto;padding:12px 16px 60px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}
+  input,select,button{font:inherit;color:var(--txt);background:var(--card2);border:1px solid var(--line);
+       border-radius:10px;padding:9px 11px}
+  input{flex:1;min-width:140px}
+  button{cursor:pointer;background:var(--accent);border-color:var(--accent);color:#04121f;font-weight:600}
+  button.ghost{background:var(--card2);color:var(--txt);font-weight:500}
+  .seg{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg button{border:none;border-radius:0;background:var(--card2);color:var(--muted);font-weight:500;padding:9px 13px}
+  .seg button.on{background:var(--accent);color:#04121f;font-weight:700}
+  .status{color:var(--muted);font-size:13px;margin:6px 2px}
+  .banner{display:none;align-items:center;gap:10px;background:#3a2a05;border:1px solid #6b4e0a;color:#ffe4a3;
+          border-radius:12px;padding:10px 14px;margin:8px 0;font-size:14px}
+  .banner.show{display:flex}
+  .banner button{background:#ffb020;border-color:#ffb020;color:#2a1d00;padding:6px 12px;font-size:13px;margin-inline-start:auto}
+  .daygrp{margin:18px 0 6px;color:var(--accent);font-size:14px;font-weight:700;border-bottom:1px solid var(--line);padding-bottom:4px}
+  .match{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin:9px 0;position:relative;transition:box-shadow .3s,border-color .3s}
+  .match.mine{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .match.changed{border-color:var(--new);box-shadow:0 0 0 2px var(--new) inset, 0 0 14px #ffb02055;animation:pulse 1.6s ease-in-out 3}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 2px var(--new) inset,0 0 6px #ffb02033}50%{box-shadow:0 0 0 2px var(--new) inset,0 0 20px #ffb020aa}}
+  .flag{position:absolute;inset-inline-start:12px;top:-9px;background:var(--new);color:#2a1d00;font-size:11px;font-weight:800;padding:2px 8px;border-radius:10px}
+  .mtop{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px}
+  .time{font-weight:700;font-size:15px}
+  .pill{font-size:11px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+  .pill.done{background:#20343f;color:var(--muted)}
+  .pill.live{background:#3a2a05;color:var(--live)}
+  .pill.soon{background:#0e2a44;color:var(--soon)}
+  .players{display:flex;flex-direction:column;gap:3px;margin:4px 0}
+  .prow{display:flex;justify-content:space-between;gap:10px;align-items:center}
+  .pname{font-size:15px} .pname.win{font-weight:800} .pname.me{color:var(--accent);font-weight:800}
+  .sets{font-variant-numeric:tabular-nums;letter-spacing:1px;color:var(--muted);font-size:14px}
+  .sets .w{color:var(--win);font-weight:800} .sets .l{color:var(--txt)}
+  .meta{color:var(--muted);font-size:12.5px;margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+  .meta a{color:var(--accent);text-decoration:none}
+  .empty{color:var(--muted);text-align:center;padding:40px 10px}
+  details.cfg{margin-top:8px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:6px 12px}
+  details.cfg summary{cursor:pointer;color:var(--muted);font-size:13px}
+  .cfg .row{display:flex;gap:8px;align-items:center;margin:8px 0;flex-wrap:wrap}
+  .cfg label{font-size:12.5px;color:var(--muted);min-width:120px}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid var(--line);border-top-color:var(--accent);
+        border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-inline-end:6px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .bell{flex:0 0 auto}
+  .bell.on{background:var(--win);border-color:var(--win)}
+  #gate{position:fixed;inset:0;z-index:50;background:var(--bg);display:flex;align-items:center;justify-content:center}
+  #gate .box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:26px 22px;width:min(340px,86vw);text-align:center}
+  #gate h2{margin:0 0 4px;font-size:20px} #gate p{color:var(--muted);font-size:13px;margin:0 0 16px}
+  #gate input{width:100%;text-align:center;margin-bottom:10px}
+  #gate button{width:100%} #gate .err{color:var(--lose);font-size:13px;min-height:18px;margin-top:8px}
+  #app{display:none} body.unlocked #app{display:block} body.unlocked #gate{display:none}
+</style>
+</head>
+<body>
+<div id="gate">
+  <div class="box">
+    <h2>🎾 גישה מוגנת</h2>
+    <p>הזן סיסמה כדי לצפות במשחקים</p>
+    <input id="pw" type="password" placeholder="סיסמה" autocomplete="current-password">
+    <button id="pwBtn">כניסה</button>
+    <div class="err" id="pwErr"></div>
+  </div>
+</div>
+
+<div id="app">
+<header>
+  <div class="wrap" style="padding-bottom:0">
+    <h1>🎾 המשחקים של הבן</h1>
+    <div class="sub" id="ctxSub">טוען…</div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="bar">
+    <input id="player" placeholder="שם השחקן (כפי שמופיע באפליקציה)" autocomplete="off">
+    <div class="seg" id="scopeSeg">
+      <button data-scope="mine" class="on">שלו</button>
+      <button data-scope="all">כל הקטגוריה</button>
+    </div>
+    <button id="refresh">רענן</button>
+    <button id="bell" class="ghost bell" title="הפעל התראות מערכת">🔔</button>
+  </div>
+
+  <div class="banner" id="banner">
+    <span id="bannerText"></span>
+    <button id="markRead">סמן כנקרא</button>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <details class="cfg" id="cfg">
+    <summary>הגדרות (תחרות / קטגוריה / תאריכים / רענון)</summary>
+    <div class="row"><label>Union ID</label><input id="cfgUnion"></div>
+    <div class="row"><label>תחרות מכילה</label><input id="cfgComp"></div>
+    <div class="row"><label>קטגוריה מכילה</label><input id="cfgCat"></div>
+    <div class="row"><label>מתאריך</label><input id="cfgFrom" type="date" style="flex:0 0 160px">
+                    <label style="min-width:auto">עד</label><input id="cfgTo" type="date" style="flex:0 0 160px"></div>
+    <div class="row"><label>רענון אוטומטי (דק')</label><input id="cfgAuto" type="number" style="flex:0 0 90px"></div>
+    <div class="row"><button class="ghost" id="cfgSave">שמור וטען מחדש</button>
+                    <button class="ghost" id="cfgReset">אפס לברירת מחדל</button></div>
+  </details>
+
+  <div id="list"></div>
+</div>
+</div>
+
+<script>
+// ======================= CONFIG =======================
+const DEFAULT_PLAYER = "";   // intentionally empty — type the name once, it's saved in this browser only (localStorage). Keeps the published page free of any personal info.
+
+const DEFAULTS = {
+  base:  "https://loglig.com:8443/api",
+  union: "38",                        // Israel Tennis Association
+  comp:  "אזורית קיץ 1 2026",         // competition name (substring match)
+  cat:   "בנים 14 מרכז א'",           // category name (substring match)
+  from:  "2026-07-24",                // scan window start (competition dates)
+  to:    "2026-07-29",                // scan window end
+  auto:  10,                          // auto-refresh every N minutes (0 = off)
+  concurrency: 6
+};
+// ======================================================
+
+const $ = s => document.querySelector(s);
+const LS = "itennis.cfg.v1";
+let CFG = load();
+let timer = null;
+
+function load(){
+  const saved = JSON.parse(localStorage.getItem(LS) || "{}");
+  const c = {...DEFAULTS, ...saved};
+  c.player = ("player" in saved) ? saved.player : DEFAULT_PLAYER;
+  c.scope  = saved.scope || "mine";
+  return c;
+}
+function save(){ localStorage.setItem(LS, JSON.stringify(CFG)); }
+function stateKey(){ // per competition+category, so switching contexts doesn't cross-contaminate
+  return "itennis.snap." + btoa(unescape(encodeURIComponent(CFG.comp+"|"+CFG.cat))).slice(0,24);
+}
+function unseenKey(){ return stateKey()+".unseen"; }
+
+// ---- fetch with limited concurrency ----
+async function pool(items, n, fn){
+  const out = new Array(items.length); let i = 0;
+  await Promise.all(Array.from({length:Math.min(n,items.length)}, async () => {
+    while(i < items.length){ const idx = i++; out[idx] = await fn(items[idx], idx); }
+  }));
+  return out;
+}
+function dateList(){
+  const out = [];
+  if(CFG.from && CFG.to){
+    let d = new Date(CFG.from+"T00:00:00"); const end = new Date(CFG.to+"T00:00:00");
+    let guard=0;
+    while(d<=end && guard++<400){ out.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1); }
+    return out;
+  }
+  const today = new Date();               // fallback: a small window around today
+  for(let k=-7;k<=14;k++){ const t=new Date(today); t.setDate(today.getDate()+k); out.push(t.toISOString().slice(0,10)); }
+  return out;
+}
+async function fetchDay(date){
+  const url = `${CFG.base}/NewUnion/GetTennisUnionGames/${CFG.union}/${date}`;
+  try{
+    const r = await fetch(url, {headers:{Accept:"application/json"}});
+    if(!r.ok) return [];
+    const j = await r.json();
+    return (j.UnionCompetitionGames || []).map(g => ({...g, _date:date}));
+  }catch(e){ return []; }
+}
+
+// ---- helpers ----
+const norm = s => (s||"").replace(/\s+/g," ").trim().toLowerCase();
+function inCategory(g){
+  return norm(g.CompetitionName).includes(norm(CFG.comp)) &&
+         norm(g.CategoryName).includes(norm(CFG.cat));
+}
+function names(g){
+  const a = [g.FirstPlayerName, g.FirstPairPlayerName].filter(Boolean).join(" / ");
+  const b = [g.SecondPlayerName, g.SecondPairPlayerName].filter(Boolean).join(" / ");
+  return [a,b];
+}
+function isMine(g){
+  if(!g || !CFG.player) return false;
+  const p = norm(CFG.player);
+  return [g.FirstPlayerName,g.SecondPlayerName,g.FirstPairPlayerName,g.SecondPairPlayerName]
+         .some(n => norm(n).includes(p));
+}
+function played(g){ return (g.SetsScores||[]).length>0; }
+function winner(g){ let a=0,b=0;
+  for(const s of (g.SetsScores||[])){ if(s.FirstPlayerScore>s.SecondPlayerScore)a++; else if(s.SecondPlayerScore>s.FirstPlayerScore)b++; }
+  return a===b?0:(a>b?1:2);
+}
+function statusPill(g){
+  if(played(g)) return `<span class="pill done">הסתיים</span>`;
+  const t = new Date(g.GameTime), now = new Date();
+  const diff = (t-now)/60000;
+  if(diff<=0 && diff>-240) return `<span class="pill live">משחק כעת</span>`;
+  if(diff>0) return `<span class="pill soon">עתידי</span>`;
+  return "";
+}
+function setsHtml(g){
+  if(!played(g)) return null;
+  const w = winner(g);
+  const line = side => (g.SetsScores||[]).map(s=>{
+    const my = side===1?s.FirstPlayerScore:s.SecondPlayerScore;
+    const op = side===1?s.SecondPlayerScore:s.FirstPlayerScore;
+    const cls = my>op?"w":"l";
+    const tb = s.TieBreakScore!=null? `<sup>${s.TieBreakScore}</sup>`:"";
+    return `<span class="${cls}">${my}${tb}</span>`;
+  }).join(" ");
+  return {a:line(1), b:line(2), w};
+}
+function fmtDay(d){ return new Date(d+"T00:00:00").toLocaleDateString("he-IL",{weekday:"long",day:"numeric",month:"long"}); }
+function fmtTime(g){ return (g.GameTime||"").slice(11,16) || "—"; }
+function mapsLink(g){
+  const q = encodeURIComponent([g.AuditoriumName,g.AuditoriumAddress].filter(Boolean).join(", "));
+  return q? `<a href="https://waze.com/ul?q=${q}" target="_blank">🧭 ${g.AuditoriumName||"מיקום"}</a>` : "";
+}
+
+// ---- change detection ----
+function matchKey(g){
+  const ids=[g.FirstPlayerId,g.SecondPlayerId].filter(Boolean).sort((a,b)=>a-b).join("-")||"tbd";
+  return `${g.CycleId}|${ids}`;
+}
+function sig(g){
+  const sets=(g.SetsScores||[]).map(s=>`${s.SetNumber}:${s.FirstPlayerScore}-${s.SecondPlayerScore}${s.TieBreakScore!=null?"("+s.TieBreakScore+")":""}`).join(",");
+  return [g.GameTime,g.FirstPlayerId,g.SecondPlayerId,g.FirstPlayerName,g.SecondPlayerName,g.AuditoriumId,sets].join("§");
+}
+function changeLabel(g,prevSig){
+  if(!prevSig) return "חדש";
+  const parts=prevSig.split("§");
+  if(parts[6] !== sig(g).split("§")[6]) return "תוצאה";
+  if(parts[0] !== g.GameTime) return "שינוי שעה";
+  return "עודכן";
+}
+
+let ALL=[], UNSEEN={}, prevSnap=null;
+
+function computeDiff(all){
+  const cat = all.filter(inCategory);
+  const cur = {}; const keyGame={};
+  for(const g of cat){ cur[matchKey(g)]=sig(g); keyGame[matchKey(g)]=g; }
+  const firstRun = prevSnap===null && localStorage.getItem(stateKey())===null;
+  const prev = prevSnap!==null ? prevSnap : JSON.parse(localStorage.getItem(stateKey())||"{}");
+  UNSEEN = JSON.parse(localStorage.getItem(unseenKey())||"{}");
+  // prune acknowledged/vanished keys
+  UNSEEN = Object.fromEntries(Object.entries(UNSEEN).filter(([k])=>k in cur));
+  const freshMine=[];
+  if(!firstRun){
+    for(const k in cur){
+      if(cur[k] !== prev[k]){
+        const label = changeLabel(keyGame[k], prev[k]);
+        UNSEEN[k] = {label};
+        if(isMine(keyGame[k])) freshMine.push({g:keyGame[k], label});
+      }
+    }
+  }
+  prevSnap = cur;
+  localStorage.setItem(stateKey(), JSON.stringify(cur));
+  localStorage.setItem(unseenKey(), JSON.stringify(UNSEEN));
+  return {keyGame, freshMine};
+}
+function unseenMineCount(keyGame){
+  return Object.keys(UNSEEN).filter(k=> !CFG.player || isMine(keyGame[k])).length;
+}
+
+// ---- notifications / favicon ----
+function setFavicon(count){
+  const c=document.createElement("canvas"); c.width=c.height=64; const x=c.getContext("2d");
+  x.fillStyle="#c6ff2f"; x.beginPath(); x.arc(32,32,29,0,7); x.fill();
+  x.strokeStyle="#ffffff"; x.lineWidth=3;
+  x.beginPath(); x.arc(6,8,42,0.15,1.15); x.stroke();
+  x.beginPath(); x.arc(58,56,42,3.3,4.35); x.stroke();
+  if(count>0){ x.fillStyle="#ff3b30"; x.beginPath(); x.arc(48,16,17,0,7); x.fill();
+    x.fillStyle="#fff"; x.font="bold 26px -apple-system,sans-serif"; x.textAlign="center"; x.textBaseline="middle";
+    x.fillText(count>9?"9+":String(count),48,18); }
+  $("#fav").href=c.toDataURL("image/png");
+}
+function setBadge(count){
+  setFavicon(count);
+  document.title=(count>0?`(${count}) `:"")+"הטניס של הבן";
+  const b=$("#banner");
+  if(count>0){ b.classList.add("show");
+    $("#bannerText").textContent=`🔔 ${count} עדכונים${CFG.player?` במשחקים של ${CFG.player}`:""}`; }
+  else b.classList.remove("show");
+}
+function systemNotify(items){
+  if(!("Notification"in window)||Notification.permission!=="granted"||!items.length) return;
+  const body = items.length===1
+    ? `${items[0].label}: ${names(items[0].g).join(" נגד ")}`
+    : `${items.length} עדכונים במשחקים של ${CFG.player}`;
+  try{ new Notification("🎾 עדכון טניס",{body, tag:"itennis", renotify:true}); }catch(e){}
+}
+
+// ---- render ----
+function render(){
+  const list = $("#list"); list.innerHTML="";
+  let rows = ALL.filter(inCategory);
+  if(CFG.scope==="mine") rows = rows.filter(isMine);
+  rows.sort((a,b)=> (a.GameTime||a._date).localeCompare(b.GameTime||b._date));
+
+  if(!rows.length){
+    list.innerHTML = `<div class="empty">${CFG.scope==="mine" && CFG.player
+      ? `לא נמצאו משחקים עבור "${CFG.player}" בטווח התאריכים.<br>בדוק את האיות או הרחב את טווח התאריכים בהגדרות.`
+      : CFG.scope==="mine" ? "הזן שם שחקן למעלה כדי לראות את המשחקים שלו."
+      : "לא נמצאו משחקים בקטגוריה בטווח התאריכים."}</div>`;
+    return;
+  }
+  let lastDay="";
+  for(const g of rows){
+    if(g._date!==lastDay){ lastDay=g._date;
+      const h=document.createElement("div"); h.className="daygrp"; h.textContent=fmtDay(g._date); list.appendChild(h); }
+    const [na,nb]=names(g), mine=isMine(g), s=setsHtml(g), w=s?s.w:0;
+    const chg = UNSEEN[matchKey(g)];
+    const meCls = side => mine && norm((side===1?[g.FirstPlayerName,g.FirstPairPlayerName]:[g.SecondPlayerName,g.SecondPairPlayerName]).join(" ")).includes(norm(CFG.player))?"me":"";
+    const el=document.createElement("div");
+    el.className="match"+(mine?" mine":"")+(chg?" changed":"");
+    el.innerHTML=`
+      ${chg?`<span class="flag">${chg.label}</span>`:""}
+      <div class="mtop"><span class="time">🕐 ${fmtTime(g)}</span>${statusPill(g)}</div>
+      <div class="players">
+        <div class="prow"><span class="pname ${w===1?'win':''} ${meCls(1)}">${na||"—"}</span><span class="sets">${s?s.a:""}</span></div>
+        <div class="prow"><span class="pname ${w===2?'win':''} ${meCls(2)}">${nb||"— (טרם נקבע)"}</span><span class="sets">${s?s.b:""}</span></div>
+      </div>
+      <div class="meta">${mapsLink(g)}<span>${g.CategoryName||""}</span></div>`;
+    list.appendChild(el);
+  }
+}
+
+async function run(){
+  syncUI();
+  $("#ctxSub").textContent = `${CFG.comp} · ${CFG.cat}`;
+  const dates = dateList();
+  $("#status").innerHTML = `<span class="spin"></span> סורק ${dates.length} תאריכים…`;
+  const chunks = await pool(dates, CFG.concurrency, fetchDay);
+  ALL = chunks.flat();
+  const {keyGame, freshMine} = computeDiff(ALL);
+  const inCat = ALL.filter(inCategory), mineN = inCat.filter(isMine).length;
+  $("#status").textContent = `נמצאו ${inCat.length} משחקים בקטגוריה` + (CFG.player?` · ${mineN} של ${CFG.player}`:"")
+                           + ` · עודכן ${new Date().toLocaleTimeString("he-IL")}` + (CFG.auto>0?` · רענון כל ${CFG.auto} דק'`:"");
+  render();
+  setBadge(unseenMineCount(keyGame));
+  systemNotify(freshMine);
+}
+
+function markRead(){
+  UNSEEN={}; localStorage.setItem(unseenKey(),"{}");
+  setBadge(0); render();
+}
+
+function schedule(){
+  if(timer) clearInterval(timer);
+  if(CFG.auto>0) timer=setInterval(run, CFG.auto*60000);
+}
+
+function syncUI(){
+  $("#player").value = CFG.player||"";
+  $("#cfgUnion").value=CFG.union; $("#cfgComp").value=CFG.comp; $("#cfgCat").value=CFG.cat;
+  $("#cfgFrom").value=CFG.from||""; $("#cfgTo").value=CFG.to||""; $("#cfgAuto").value=CFG.auto;
+  document.querySelectorAll("#scopeSeg button").forEach(b=>b.classList.toggle("on", b.dataset.scope===CFG.scope));
+  if("Notification"in window && Notification.permission==="granted") $("#bell").classList.add("on");
+}
+
+// events
+$("#player").addEventListener("input", e=>{ CFG.player=e.target.value; save(); render();
+  setBadge(unseenMineCount(Object.fromEntries(ALL.filter(inCategory).map(g=>[matchKey(g),g])))); });
+document.querySelectorAll("#scopeSeg button").forEach(b=>b.addEventListener("click",()=>{
+  CFG.scope=b.dataset.scope; save(); syncUI(); render(); }));
+$("#refresh").addEventListener("click", run);
+$("#markRead").addEventListener("click", markRead);
+$("#bell").addEventListener("click", async ()=>{
+  if(!("Notification"in window)) return alert("הדפדפן לא תומך בהתראות");
+  const p=await Notification.requestPermission();
+  if(p==="granted"){ $("#bell").classList.add("on"); new Notification("🎾 התראות הופעלו",{body:"תקבל עדכון כשמשחק משתנה."}); }
+});
+$("#cfgSave").addEventListener("click", ()=>{
+  CFG.union=$("#cfgUnion").value.trim(); CFG.comp=$("#cfgComp").value.trim(); CFG.cat=$("#cfgCat").value.trim();
+  CFG.from=$("#cfgFrom").value; CFG.to=$("#cfgTo").value; CFG.auto=+$("#cfgAuto").value||0;
+  save(); prevSnap=null; schedule(); run(); });
+$("#cfgReset").addEventListener("click", ()=>{ localStorage.removeItem(LS); CFG=load(); prevSnap=null; schedule(); run(); });
+document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) run(); });
+
+// ======================= ACCESS GATE =======================
+// Password is not stored in the page — only a salted SHA-256 hash of it is.
+// To set your own: run in Terminal:
+//   printf '%s' 'itennis-arnavnovia-v1:YOUR_PASSWORD' | shasum -a 256 | awk '{print $1}'
+// and paste the 64-char result as PASS_SHA256 below.
+const SALT = "itennis-arnavnovia-v1:";
+const PASS_SHA256 = "2a14b56be85db7a86f24134c5ee1d0d263fb5550fa2e32e7d0d053e4473b519b";
+const UNLOCK_KEY = "itennis.unlock";
+const UNLOCK_DAYS = 30;
+
+async function sha256(str){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+function unlocked(){
+  const exp = +localStorage.getItem(UNLOCK_KEY) || 0;
+  return exp > Date.now();
+}
+let started = false;
+function startApp(){
+  if(started) return; started = true;
+  document.body.classList.add("unlocked");
+  schedule(); run();
+}
+async function tryUnlock(){
+  const v = $("#pw").value;
+  if(await sha256(SALT+v) === PASS_SHA256){
+    localStorage.setItem(UNLOCK_KEY, String(Date.now() + UNLOCK_DAYS*864e5));
+    startApp();
+  } else {
+    $("#pwErr").textContent = "סיסמה שגויה";
+    $("#pw").value = ""; $("#pw").focus();
+  }
+}
+$("#pwBtn").addEventListener("click", tryUnlock);
+$("#pw").addEventListener("keydown", e=>{ if(e.key==="Enter") tryUnlock(); });
+
+if(unlocked()) startApp();
+else setTimeout(()=>$("#pw").focus(), 50);
+</script>
+</body>
+</html>

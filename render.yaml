@@ -30,6 +30,10 @@ services:
       - type: rewrite
         source: /english
         destination: /english.html
+      # iTennis competition tracker (password-gated, clean URL)
+      - type: rewrite
+        source: /tennis
+        destination: /tennis.html
       - type: rewrite
         source: /*
         destination: /index.html
