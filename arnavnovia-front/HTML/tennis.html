@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>הטניס של הבן — iTennis</title>
+<title>משחקים בתחרות</title>
 <link rel="icon" id="fav" href="data:image/png;base64,iVBORw0KGgo=">
 <style>
   :root{
@@ -82,7 +82,7 @@
 <div id="app">
 <header>
   <div class="wrap" style="padding-bottom:0">
-    <h1>🎾 המשחקים של הבן</h1>
+    <h1>🎾 המשחקים הבאים</h1>
     <div class="sub" id="ctxSub">טוען…</div>
   </div>
 </header>
@@ -295,7 +295,7 @@ function setFavicon(count){
 }
 function setBadge(count){
   setFavicon(count);
-  document.title=(count>0?`(${count}) `:"")+"הטניס של הבן";
+  document.title=(count>0?`(${count}) `:"")+"משחקים בתחרות";
   const b=$("#banner");
   if(count>0){ b.classList.add("show");
     $("#bannerText").textContent=`🔔 ${count} עדכונים${CFG.player?` במשחקים של ${CFG.player}`:""}`; }
