@@ -128,10 +128,10 @@ const DEFAULT_PLAYER = "";   // intentionally empty — type the name once, it's
 const DEFAULTS = {
   base:  "https://loglig.com:8443/api",
   union: "38",                        // Israel Tennis Association
-  comp:  "אזורית קיץ 1 2026",         // competition name (substring match)
+  comp:  "אזורית סוכות 2026",         // competition name (substring match)
   cat:   "בנים 14 מרכז א'",           // category name (substring match)
-  from:  "2026-07-24",                // scan window start (competition dates)
-  to:    "2026-07-29",                // scan window end
+  from:  "2026-09-28",                // first scheduled day
+  to:    "2026-10-10",                // safe window until the official draw is published
   auto:  10,                          // auto-refresh every N minutes (0 = off)
   concurrency: 6
 };
@@ -143,7 +143,13 @@ let CFG = load();
 let timer = null;
 
 function load(){
-  const saved = JSON.parse(localStorage.getItem(LS) || "{}");
+  let saved = JSON.parse(localStorage.getItem(LS) || "{}");
+  // Preserve the saved player and UI preferences while advancing returning
+  // visitors from the previous tournament to the new one.
+  if(saved.comp === "אזורית קיץ 1 2026"){
+    saved = {...saved, comp:DEFAULTS.comp, cat:DEFAULTS.cat, from:DEFAULTS.from, to:DEFAULTS.to};
+    localStorage.setItem(LS, JSON.stringify(saved));
+  }
   const c = {...DEFAULTS, ...saved};
   c.player = ("player" in saved) ? saved.player : DEFAULT_PLAYER;
   c.scope  = saved.scope || "mine";
