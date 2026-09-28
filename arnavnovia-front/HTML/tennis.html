@@ -18,6 +18,8 @@
   h1{font-size:19px;margin:0 0 2px} .sub{color:var(--muted);font-size:13px}
   .wrap{max-width:720px;margin:0 auto;padding:12px 16px 60px}
   .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:10px 0}
+  .category-picker{display:flex;align-items:center;gap:10px;margin:10px 0;color:var(--muted);font-size:14px}
+  .category-picker select{flex:1;min-width:0}
   input,select,button{font:inherit;color:var(--txt);background:var(--card2);border:1px solid var(--line);
        border-radius:10px;padding:9px 11px}
   input{flex:1;min-width:140px}
@@ -88,6 +90,13 @@
 </header>
 
 <div class="wrap">
+  <div class="category-picker">
+    <label for="category">קטגוריה</label>
+    <select id="category">
+      <option value="בנים 14 מרכז א'">בנים 14 - מרכז א</option>
+      <option value="בנים 12 מרכז א">בנים 12 מרכז א</option>
+    </select>
+  </div>
   <div class="bar">
     <input id="player" placeholder="שם השחקן (כפי שמופיע באפליקציה)" autocomplete="off">
     <div class="seg" id="scopeSeg">
@@ -106,10 +115,9 @@
   <div class="status" id="status"></div>
 
   <details class="cfg" id="cfg">
-    <summary>הגדרות (תחרות / קטגוריה / תאריכים / רענון)</summary>
+    <summary>הגדרות (תחרות / תאריכים / רענון)</summary>
     <div class="row"><label>Union ID</label><input id="cfgUnion"></div>
     <div class="row"><label>תחרות מכילה</label><input id="cfgComp"></div>
-    <div class="row"><label>קטגוריה מכילה</label><input id="cfgCat"></div>
     <div class="row"><label>מתאריך</label><input id="cfgFrom" type="date" style="flex:0 0 160px">
                     <label style="min-width:auto">עד</label><input id="cfgTo" type="date" style="flex:0 0 160px"></div>
     <div class="row"><label>רענון אוטומטי (דק')</label><input id="cfgAuto" type="number" style="flex:0 0 90px"></div>
@@ -139,8 +147,10 @@ const DEFAULTS = {
 
 const $ = s => document.querySelector(s);
 const LS = "itennis.cfg.v1";
+const CATEGORIES = [DEFAULTS.cat, "בנים 12 מרכז א"];
 let CFG = load();
 let timer = null;
+let runId = 0;
 
 function load(){
   let saved = JSON.parse(localStorage.getItem(LS) || "{}");
@@ -151,15 +161,25 @@ function load(){
     localStorage.setItem(LS, JSON.stringify(saved));
   }
   const c = {...DEFAULTS, ...saved};
+  if(!CATEGORIES.includes(c.cat)) c.cat = DEFAULTS.cat;
   c.player = ("player" in saved) ? saved.player : DEFAULT_PLAYER;
   c.scope  = saved.scope || "mine";
   return c;
 }
 function save(){ localStorage.setItem(LS, JSON.stringify(CFG)); }
 function stateKey(){ // per competition+category, so switching contexts doesn't cross-contaminate
-  return "itennis.snap." + btoa(unescape(encodeURIComponent(CFG.comp+"|"+CFG.cat))).slice(0,24);
+  return "itennis.snap." + btoa(unescape(encodeURIComponent(CFG.comp+"|"+CFG.cat)));
 }
 function unseenKey(){ return stateKey()+".unseen"; }
+function migrateLegacyState(){
+  if(CFG.cat!==DEFAULTS.cat || localStorage.getItem(stateKey())!==null) return;
+  const oldKey = "itennis.snap." + btoa(unescape(encodeURIComponent(CFG.comp+"|"+CFG.cat))).slice(0,24);
+  const snapshot = localStorage.getItem(oldKey);
+  if(snapshot===null) return;
+  localStorage.setItem(stateKey(), snapshot);
+  const unseen = localStorage.getItem(oldKey+".unseen");
+  if(unseen!==null) localStorage.setItem(unseenKey(), unseen);
+}
 
 // ---- fetch with limited concurrency ----
 async function pool(items, n, fn){
@@ -260,6 +280,7 @@ function changeLabel(g,prevSig){
 let ALL=[], UNSEEN={}, prevSnap=null;
 
 function computeDiff(all){
+  migrateLegacyState();
   const cat = all.filter(inCategory);
   const cur = {}; const keyGame={};
   for(const g of cat){ cur[matchKey(g)]=sig(g); keyGame[matchKey(g)]=g; }
@@ -351,11 +372,13 @@ function render(){
 }
 
 async function run(){
+  const currentRun = ++runId;
   syncUI();
   $("#ctxSub").textContent = `${CFG.comp} · ${CFG.cat}`;
   const dates = dateList();
   $("#status").innerHTML = `<span class="spin"></span> סורק ${dates.length} תאריכים…`;
   const chunks = await pool(dates, CFG.concurrency, fetchDay);
+  if(currentRun !== runId) return;
   ALL = chunks.flat();
   const {keyGame, freshMine} = computeDiff(ALL);
   const inCat = ALL.filter(inCategory), mineN = inCat.filter(isMine).length;
@@ -377,14 +400,18 @@ function schedule(){
 }
 
 function syncUI(){
+  $("#category").value = CFG.cat;
   $("#player").value = CFG.player||"";
-  $("#cfgUnion").value=CFG.union; $("#cfgComp").value=CFG.comp; $("#cfgCat").value=CFG.cat;
+  $("#cfgUnion").value=CFG.union; $("#cfgComp").value=CFG.comp;
   $("#cfgFrom").value=CFG.from||""; $("#cfgTo").value=CFG.to||""; $("#cfgAuto").value=CFG.auto;
   document.querySelectorAll("#scopeSeg button").forEach(b=>b.classList.toggle("on", b.dataset.scope===CFG.scope));
   if("Notification"in window && Notification.permission==="granted") $("#bell").classList.add("on");
 }
 
 // events
+$("#category").addEventListener("change", e=>{
+  CFG.cat=e.target.value; save(); prevSnap=null; run();
+});
 $("#player").addEventListener("input", e=>{ CFG.player=e.target.value; save(); render();
   setBadge(unseenMineCount(Object.fromEntries(ALL.filter(inCategory).map(g=>[matchKey(g),g])))); });
 document.querySelectorAll("#scopeSeg button").forEach(b=>b.addEventListener("click",()=>{
@@ -397,7 +424,7 @@ $("#bell").addEventListener("click", async ()=>{
   if(p==="granted"){ $("#bell").classList.add("on"); new Notification("🎾 התראות הופעלו",{body:"תקבל עדכון כשמשחק משתנה."}); }
 });
 $("#cfgSave").addEventListener("click", ()=>{
-  CFG.union=$("#cfgUnion").value.trim(); CFG.comp=$("#cfgComp").value.trim(); CFG.cat=$("#cfgCat").value.trim();
+  CFG.union=$("#cfgUnion").value.trim(); CFG.comp=$("#cfgComp").value.trim();
   CFG.from=$("#cfgFrom").value; CFG.to=$("#cfgTo").value; CFG.auto=+$("#cfgAuto").value||0;
   save(); prevSnap=null; schedule(); run(); });
 $("#cfgReset").addEventListener("click", ()=>{ localStorage.removeItem(LS); CFG=load(); prevSnap=null; schedule(); run(); });
