@@ -192,23 +192,28 @@ async function pool(items, n, fn){
 function dateList(){
   const out = [];
   if(CFG.from && CFG.to){
-    let d = new Date(CFG.from+"T00:00:00"); const end = new Date(CFG.to+"T00:00:00");
+    let d = new Date(CFG.from+"T00:00:00Z"); const end = new Date(CFG.to+"T00:00:00Z");
     let guard=0;
-    while(d<=end && guard++<400){ out.push(d.toISOString().slice(0,10)); d.setDate(d.getDate()+1); }
+    while(d<=end && guard++<400){ out.push(d.toISOString().slice(0,10)); d.setUTCDate(d.getUTCDate()+1); }
     return out;
   }
-  const today = new Date();               // fallback: a small window around today
-  for(let k=-7;k<=14;k++){ const t=new Date(today); t.setDate(today.getDate()+k); out.push(t.toISOString().slice(0,10)); }
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getFullYear(),now.getMonth(),now.getDate()));
+  for(let k=-7;k<=14;k++){ const t=new Date(today); t.setUTCDate(today.getUTCDate()+k); out.push(t.toISOString().slice(0,10)); }
   return out;
 }
-async function fetchDay(date){
-  const url = `${CFG.base}/NewUnion/GetTennisUnionGames/${CFG.union}/${date}`;
+const dayCache = new Map();
+async function fetchDay(date, config=CFG){
+  const url = `${config.base}/NewUnion/GetTennisUnionGames/${config.union}/${date}`;
   try{
     const r = await fetch(url, {headers:{Accept:"application/json"}});
-    if(!r.ok) return [];
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
     const j = await r.json();
-    return (j.UnionCompetitionGames || []).map(g => ({...g, _date:date}));
-  }catch(e){ return []; }
+    if(!Array.isArray(j.UnionCompetitionGames)) throw new Error("Invalid daily feed");
+    const games = j.UnionCompetitionGames.map(g => ({...g, _date:(g.GameTime||"").slice(0,10)||date}));
+    dayCache.set(url, games);
+    return {games, failed:false};
+  }catch(e){ return {games:dayCache.get(url)||[], failed:true}; }
 }
 
 // ---- helpers ----
@@ -228,13 +233,21 @@ function isMine(g){
   return [g.FirstPlayerName,g.SecondPlayerName,g.FirstPairPlayerName,g.SecondPairPlayerName]
          .some(n => norm(n).includes(p));
 }
-function played(g){ return (g.SetsScores||[]).length>0; }
+function walkoverWinner(g){
+  const isWO = status => norm(status).replace(/[^a-z]/g,"") === "wo";
+  if(isWO(g.FirstPlayerStatus)) return 1;
+  if(isWO(g.SecondPlayerStatus)) return 2;
+  return 0;
+}
+function orderedSets(g){ return [...(g.SetsScores||[])].sort((a,b)=>(a.SetNumber||0)-(b.SetNumber||0)); }
+function played(g){ return walkoverWinner(g)>0 || (g.SetsScores||[]).length>0; }
 function winner(g){ let a=0,b=0;
+  if(walkoverWinner(g)) return walkoverWinner(g);
   for(const s of (g.SetsScores||[])){ if(s.FirstPlayerScore>s.SecondPlayerScore)a++; else if(s.SecondPlayerScore>s.FirstPlayerScore)b++; }
   return a===b?0:(a>b?1:2);
 }
 function statusPill(g){
-  if(played(g)) return `<span class="pill done">הסתיים</span>`;
+  if(played(g)) return `<span class="pill done">${walkoverWinner(g)?"ניצחון טכני":"הסתיים"}</span>`;
   const t = new Date(g.GameTime), now = new Date();
   const diff = (t-now)/60000;
   if(diff<=0 && diff>-240) return `<span class="pill live">משחק כעת</span>`;
@@ -244,7 +257,8 @@ function statusPill(g){
 function setsHtml(g){
   if(!played(g)) return null;
   const w = winner(g);
-  const line = side => (g.SetsScores||[]).map(s=>{
+  if(walkoverWinner(g)) return {a:w===1?'<span class="w" dir="ltr">W.O.</span>':"", b:w===2?'<span class="w" dir="ltr">W.O.</span>':"", w};
+  const line = side => orderedSets(g).map(s=>{
     const my = side===1?s.FirstPlayerScore:s.SecondPlayerScore;
     const op = side===1?s.SecondPlayerScore:s.FirstPlayerScore;
     const cls = my>op?"w":"l";
@@ -262,50 +276,74 @@ function mapsLink(g){
 
 // ---- change detection ----
 function matchKey(g){
-  const ids=[g.FirstPlayerId,g.SecondPlayerId].filter(Boolean).sort((a,b)=>a-b).join("-")||"tbd";
-  return `${g.CycleId}|${ids}`;
+  // A scheduled match keeps its identity when an opponent is assigned or replaced.
+  return String(g.CycleId);
 }
-function sig(g){
-  const sets=(g.SetsScores||[]).map(s=>`${s.SetNumber}:${s.FirstPlayerScore}-${s.SecondPlayerScore}${s.TieBreakScore!=null?"("+s.TieBreakScore+")":""}`).join(",");
-  return [g.GameTime,g.FirstPlayerId,g.SecondPlayerId,g.FirstPlayerName,g.SecondPlayerName,g.AuditoriumId,sets].join("§");
+const displayText = s => (s||"").replace(/\s+/g," ").trim();
+function visibleState(g){
+  return {
+    time:(g.GameTime||"").slice(0,16),
+    players:names(g).map(displayText),
+    venue:[g.AuditoriumName,g.AuditoriumAddress].map(displayText),
+    category:displayText(g.CategoryName),
+    result:{walkover:walkoverWinner(g), sets:walkoverWinner(g)?[]:orderedSets(g).map(s=>[
+      Number(s.FirstPlayerScore),Number(s.SecondPlayerScore),s.TieBreakScore==null?null:String(s.TieBreakScore)
+    ])}
+  };
+}
+function sig(g){ return JSON.stringify(visibleState(g)); }
+function previousState(prevSig,g){
+  if(prevSig.startsWith("{")) return JSON.parse(prevSig);
+  // Migrate the existing browser history without treating the new format as an update.
+  const parts=prevSig.split("§"), state=visibleState(g);
+  state.time=(parts[0]||"").slice(0,16);
+  state.players=[parts[3],parts[4]].map(displayText);
+  state.result={walkover:0, sets:(parts[6]||"").split(",").filter(Boolean).map(s=>{
+    const m=s.match(/^(\d+):([\d.]+)-([\d.]+)(?:\((.*)\))?$/);
+    return m?{order:Number(m[1]),score:[Number(m[2]),Number(m[3]),m[4]??null]}:null;
+  }).filter(Boolean).sort((a,b)=>a.order-b.order).map(s=>s.score)};
+  return state;
 }
 function changeLabel(g,prevSig){
   if(!prevSig) return "חדש";
-  const parts=prevSig.split("§");
-  if(parts[6] !== sig(g).split("§")[6]) return "תוצאה";
-  if(parts[0] !== g.GameTime) return "שינוי שעה";
+  const prev=previousState(prevSig,g), cur=visibleState(g);
+  if(JSON.stringify(prev.result)!==JSON.stringify(cur.result)) return "תוצאה";
+  if(prev.time!==cur.time) return "שינוי שעה";
   return "עודכן";
 }
 
-let ALL=[], UNSEEN={}, prevSnap=null;
+let ALL=[], UNSEEN={};
+function storedMatches(key){
+  const entries=Object.entries(JSON.parse(localStorage.getItem(key)||"{}"));
+  return Object.fromEntries(entries.map(([k,v])=>[k.split("|")[0],v]));
+}
 
 function computeDiff(all){
   migrateLegacyState();
   const cat = all.filter(inCategory);
   const cur = {}; const keyGame={};
   for(const g of cat){ cur[matchKey(g)]=sig(g); keyGame[matchKey(g)]=g; }
-  const firstRun = prevSnap===null && localStorage.getItem(stateKey())===null;
-  const prev = prevSnap!==null ? prevSnap : JSON.parse(localStorage.getItem(stateKey())||"{}");
-  UNSEEN = JSON.parse(localStorage.getItem(unseenKey())||"{}");
-  // prune acknowledged/vanished keys
-  UNSEEN = Object.fromEntries(Object.entries(UNSEEN).filter(([k])=>k in cur));
+  const firstRun = localStorage.getItem(stateKey())===null;
+  // Read the browser's latest state, including acknowledgements from another tab.
+  const prev = storedMatches(stateKey());
+  UNSEEN = storedMatches(unseenKey());
   const freshMine=[];
   if(!firstRun){
     for(const k in cur){
-      if(cur[k] !== prev[k]){
+      if(!prev[k] || JSON.stringify(previousState(prev[k],keyGame[k])) !== cur[k]){
         const label = changeLabel(keyGame[k], prev[k]);
         UNSEEN[k] = {label};
         if(isMine(keyGame[k])) freshMine.push({g:keyGame[k], label});
       }
     }
   }
-  prevSnap = cur;
-  localStorage.setItem(stateKey(), JSON.stringify(cur));
+  // An unavailable day or a narrower date window must not erase known matches.
+  localStorage.setItem(stateKey(), JSON.stringify({...prev,...cur}));
   localStorage.setItem(unseenKey(), JSON.stringify(UNSEEN));
   return {keyGame, freshMine};
 }
 function unseenMineCount(keyGame){
-  return Object.keys(UNSEEN).filter(k=> !CFG.player || isMine(keyGame[k])).length;
+  return Object.keys(UNSEEN).filter(k=> keyGame[k] && (!CFG.player || isMine(keyGame[k]))).length;
 }
 
 // ---- notifications / favicon ----
@@ -376,16 +414,27 @@ async function run(){
   syncUI();
   $("#ctxSub").textContent = `${CFG.comp} · ${CFG.cat}`;
   const dates = dateList();
+  const config = {...CFG};
   $("#status").innerHTML = `<span class="spin"></span> סורק ${dates.length} תאריכים…`;
-  const chunks = await pool(dates, CFG.concurrency, fetchDay);
+  const chunks = await pool(dates, config.concurrency, date=>fetchDay(date,config));
   if(currentRun !== runId) return;
-  ALL = chunks.flat();
-  const {keyGame, freshMine} = computeDiff(ALL);
+  ALL = [...new Map(chunks.flatMap(chunk=>chunk.games).map(g=>[matchKey(g),g])).values()];
+  const failedDays=chunks.filter(chunk=>chunk.failed).length;
+  const freshGames=chunks.filter(chunk=>!chunk.failed).flatMap(chunk=>chunk.games);
+  migrateLegacyState();
+  // Keep the initial baseline unset if the first scan missed any days.
+  if(failedDays && localStorage.getItem(stateKey())===null){
+    UNSEEN={};
+  }
+  const {freshMine} = failedDays && localStorage.getItem(stateKey())===null
+    ? {freshMine:[]}
+    : computeDiff(freshGames);
   const inCat = ALL.filter(inCategory), mineN = inCat.filter(isMine).length;
   $("#status").textContent = `נמצאו ${inCat.length} משחקים בקטגוריה` + (CFG.player?` · ${mineN} של ${CFG.player}`:"")
-                           + ` · עודכן ${new Date().toLocaleTimeString("he-IL")}` + (CFG.auto>0?` · רענון כל ${CFG.auto} דק'`:"");
+                           + ` · עודכן ${new Date().toLocaleTimeString("he-IL")}` + (CFG.auto>0?` · רענון כל ${CFG.auto} דק'`:"")
+                           + (failedDays?` · לא ניתן לרענן ${failedDays} תאריכים; יוצגו הנתונים האחרונים הזמינים`:"");
   render();
-  setBadge(unseenMineCount(keyGame));
+  setBadge(unseenMineCount(Object.fromEntries(inCat.map(g=>[matchKey(g),g]))));
   systemNotify(freshMine);
 }
 
@@ -410,7 +459,7 @@ function syncUI(){
 
 // events
 $("#category").addEventListener("change", e=>{
-  CFG.cat=e.target.value; save(); prevSnap=null; run();
+  CFG.cat=e.target.value; save(); run();
 });
 $("#player").addEventListener("input", e=>{ CFG.player=e.target.value; save(); render();
   setBadge(unseenMineCount(Object.fromEntries(ALL.filter(inCategory).map(g=>[matchKey(g),g])))); });
@@ -426,9 +475,15 @@ $("#bell").addEventListener("click", async ()=>{
 $("#cfgSave").addEventListener("click", ()=>{
   CFG.union=$("#cfgUnion").value.trim(); CFG.comp=$("#cfgComp").value.trim();
   CFG.from=$("#cfgFrom").value; CFG.to=$("#cfgTo").value; CFG.auto=+$("#cfgAuto").value||0;
-  save(); prevSnap=null; schedule(); run(); });
-$("#cfgReset").addEventListener("click", ()=>{ localStorage.removeItem(LS); CFG=load(); prevSnap=null; schedule(); run(); });
-document.addEventListener("visibilitychange", ()=>{ if(!document.hidden) run(); });
+  save(); schedule(); run(); });
+$("#cfgReset").addEventListener("click", ()=>{ localStorage.removeItem(LS); CFG=load(); schedule(); run(); });
+document.addEventListener("visibilitychange", ()=>{ if(started && !document.hidden) run(); });
+window.addEventListener("storage", e=>{
+  if(e.key===unseenKey()){
+    UNSEEN=storedMatches(unseenKey());
+    render(); setBadge(unseenMineCount(Object.fromEntries(ALL.filter(inCategory).map(g=>[matchKey(g),g]))));
+  }
+});
 
 // ======================= ACCESS GATE =======================
 // Password is not stored in the page — only a salted SHA-256 hash of it is.
