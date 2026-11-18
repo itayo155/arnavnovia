@@ -1,11 +1,11 @@
-import {createCipheriv, createDecipheriv, createHash, randomBytes, scryptSync, timingSafeEqual} from 'crypto';
+import {createCipheriv, createDecipheriv, createHash, createHmac, randomBytes, scryptSync, timingSafeEqual} from 'crypto';
 
 export type Task = {[key:string]:any; id:string; body:string; files:any[]; done:boolean};
 export type Snapshot = {tasks:Task[]; sync:{[key:string]:any}};
 export type Envelope = {iv:string; tag:string; ciphertext:string};
 export interface Persistence {
-  read():Promise<{version:number; document:Envelope}|null>;
-  write(expected:number, document:Envelope):Promise<boolean>;
+  read(proof:string):Promise<{version:number; document:Envelope}|null>;
+  write(expected:number, document:Envelope,proof:string):Promise<boolean>;
 }
 
 export class Access {
@@ -68,14 +68,15 @@ export function mergeSnapshot(previous:Snapshot,incoming:Snapshot):Snapshot {
 export class HomeworkStore {
   constructor(private persistence:Persistence) {}
   async snapshot(key:Buffer):Promise<Snapshot> {
-    const current=await this.persistence.read();
+    const current=await this.persistence.read(createHmac('sha256',key).update('homework-storage-access').digest('hex'));
     return current ? unseal(current.document,key) : {tasks:[],sync:{}};
   }
   async change(key:Buffer, update:(value:Snapshot)=>Snapshot):Promise<Snapshot> {
+    const proof=createHmac('sha256',key).update('homework-storage-access').digest('hex');
     for (let i=0;i<8;i++) {
-      const current=await this.persistence.read();
+      const current=await this.persistence.read(proof);
       const value=update(current ? unseal(current.document,key) : {tasks:[],sync:{}});
-      if (await this.persistence.write(current?.version||0,seal(value,key))) return value;
+      if (await this.persistence.write(current?.version||0,seal(value,key),proof)) return value;
     }
     throw new Error('Concurrent update; retry');
   }
