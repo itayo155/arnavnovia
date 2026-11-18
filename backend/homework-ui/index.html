@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>אחרי הצלצול · שיעורי הבית שלנו</title>
+  <link rel="stylesheet" href="/homework/style.css"><script defer src="/homework/app.js"></script>
+</head>
+<body>
+  <header><a class="brand" href="/homework"><span class="brand-mark" aria-hidden="true">✓</span> אחרי הצלצול<span class="brand-caption">הלוח המשפחתי</span></a><span class="brand-caption">שיעורי הבית שלנו</span></header>
+  <main>
+    <section class="intro"><div><p class="eyebrow" id="today"></p><h1>קצת סדר.<br><em>ואפשר לצאת לשחק.</em></h1><p class="description">כל שיעורי הבית, לכל הילדים. מסמנים כשמסיימים.</p></div><div class="tally"><strong id="remaining">—</strong><span>משימות פתוחות</span><div class="progress"><div id="progress"></div></div><small id="progress-label">מתחילים בצעד קטן</small></div></section>
+    <section class="sync-status" aria-live="polite"><div><span class="status-dot" id="status-dot"></span><strong id="sync-label">הלוח המשפחתי שלכם</strong><p id="sync-detail">טוען…</p></div></section>
+    <div class="toolbar"><div id="children" class="children" aria-label="בחירת ילד"></div><div class="tools"><label class="search-label"><span class="sr-only">חיפוש במשימות</span><input id="search" type="search" placeholder="חיפוש מקצוע או משימה…"></label><a href="/export.csv" download="homework.csv" class="export">ייצוא לטבלה ↓</a></div></div>
+    <div class="list-heading"><h2>על הפרק <span id="list-count"></span></h2><div class="list-options"><label><span class="sr-only">טווח תאריכים</span><select id="time-range"><option value="14">בשבועיים האחרונים</option><option value="30">בחודש האחרון</option><option value="all">כל ההיסטוריה</option></select></label><label class="toggle"><input id="show-done" type="checkbox"> גם משימות שהושלמו</label></div></div>
+    <section id="tasks" aria-label="רשימת שיעורי בית"></section>
+    <div id="empty" class="empty" hidden><div class="empty-mark" aria-hidden="true">✳</div><h2 id="empty-title">מקום לכל שיעורי הבית</h2><p id="empty-detail">שיעורי הבית יופיעו כאן לאחר העדכון הבא.</p></div>
+    <footer><span>בקצב שלכם. משימה אחת בכל פעם.</span><span>מסמנים כשמסיימים. חוזרים לכאן כשצריך.</span></footer>
+  </main>
+</body>
+</html>

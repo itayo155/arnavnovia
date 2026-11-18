@@ -6,6 +6,9 @@ import { testConnection } from './config/db';
 import authRoutes from './routes/authRoutes';
 import tokenRoutes from './routes/tokenRoutes';
 import { globalErrorHandler } from './utils/errorHandler';
+import {homeworkRouter} from './homework/router';
+import {SupabasePersistence} from './homework/persistence';
+import homeworkAccess from './homework/auth-config.json';
 
 // Create Express app
 const app = express();
@@ -22,6 +25,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+app.use('/homework',homeworkRouter(homeworkAccess,new SupabasePersistence()));
 app.use(express.json());
 
 // Logging in development mode

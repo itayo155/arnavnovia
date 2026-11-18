@@ -26,6 +26,13 @@ services:
     buildCommand: echo "No build needed for static HTML"
     staticPublishPath: ./arnavnovia-front/HTML
     routes:
+      # Homework UI and APIs are authenticated by the backend before any content.
+      - type: rewrite
+        source: /homework
+        destination: https://api.arnavnovia.com/homework
+      - type: rewrite
+        source: /homework/*
+        destination: https://api.arnavnovia.com/homework/*
       # English learning game (clean URL without the .html extension)
       - type: rewrite
         source: /english
