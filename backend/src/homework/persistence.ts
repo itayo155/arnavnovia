@@ -1,9 +1,11 @@
 import {supabase} from '../config/db';
 import {Envelope, Persistence} from './core';
+import config from '../config';
 
 class StorageError extends Error {
   readonly name='HomeworkStorageError';
   databaseCode:string;
+  readonly databaseHost=config.supabaseUrl?new URL(config.supabaseUrl).hostname:null;
   constructor(readonly step:string,code?:string) {
     super('Homework persistence is unavailable');
     this.databaseCode=code&&/^[A-Z0-9_]{3,12}$/.test(code)?code:'UNAVAILABLE';

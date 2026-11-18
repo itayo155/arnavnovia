@@ -16,7 +16,7 @@ export function homeworkRouter(config:{username:string;salt:string;verifier:stri
   router.use(express.json({limit:'1mb'}));
   const route=(handler:(req:Request,res:Response)=>Promise<void>)=>(req:Request,res:Response)=>{
     handler(req,res).catch(error=>res.status(503).json({error:'Homework is temporarily unavailable. Please try again.',
-      ...(error?.name==='HomeworkStorageError'?{code:'STORAGE_UNAVAILABLE',step:error.step,database_code:error.databaseCode}:{})}));
+      ...(error?.name==='HomeworkStorageError'?{code:'STORAGE_UNAVAILABLE',step:error.step,database_code:error.databaseCode,database_host:error.databaseHost}:{})}));
   };
   router.get('/api/tasks',route(async(_req,res)=>{res.json(await store.snapshot(res.locals.homeworkKey));}));
   router.post(['/api/complete','/api/ingest'],(req,res,next)=>{
