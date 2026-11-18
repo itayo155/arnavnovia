@@ -1,6 +1,15 @@
 import {supabase} from '../config/db';
 import {Envelope, Persistence} from './core';
 
+class StorageError extends Error {
+  readonly name='HomeworkStorageError';
+  databaseCode:string;
+  constructor(readonly step:string,code?:string) {
+    super('Homework persistence is unavailable');
+    this.databaseCode=code&&/^[A-Z0-9_]{3,12}$/.test(code)?code:'UNAVAILABLE';
+  }
+}
+
 // Only authenticated, encrypted envelopes are persisted. No homework plaintext,
 // Ministry credentials, browser state, or website password is stored in Postgres.
 const schema=`
@@ -35,26 +44,26 @@ export class SupabasePersistence implements Persistence {
       const check=await supabase.rpc('webtop_homework_read');
       if (!check.error) return;
       const result=await supabase.rpc('exec_sql',{query:schema});
-      if (result.error) throw new Error('Homework persistence could not initialize');
+      if (result.error) throw new StorageError('initialize',result.error.code);
       // PostgREST reloads its RPC schema asynchronously.
       for (let i=0;i<12;i++) {
         await new Promise(resolve=>setTimeout(resolve,500));
         if (!(await supabase.rpc('webtop_homework_read')).error) return;
       }
-      throw new Error('Homework persistence is not ready');
+      throw new StorageError('schema_refresh');
     })().catch(error=>{this.ready=undefined;throw error;});
     return this.ready;
   }
   async read():Promise<{version:number;document:Envelope}|null> {
     await this.initialize();
     const {data,error}=await supabase.rpc('webtop_homework_read');
-    if (error) throw new Error('Homework read failed');
+    if (error) throw new StorageError('read',error.code);
     return data;
   }
   async write(expected:number,document:Envelope):Promise<boolean> {
     await this.initialize();
     const {data,error}=await supabase.rpc('webtop_homework_write',{p_expected:expected,p_document:document});
-    if (error) throw new Error('Homework save failed');
+    if (error) throw new StorageError('save',error.code);
     return data===true;
   }
 }
