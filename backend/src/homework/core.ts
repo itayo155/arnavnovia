@@ -40,6 +40,25 @@ export function unseal(value:Envelope,key:Buffer):Snapshot {
 function fileSignature(files:any[]):string {
   return JSON.stringify(files.map(f=>[f.fileName,f.fileExtantion,f.fileSize?.size,f.fileSize?.sizeName,f.fileSize?.sizeType]).sort());
 }
+export function reconcileStudent(snapshot:Snapshot,canonical:string,aliases:string[]):Snapshot {
+  const ids=new Set([canonical,...aliases]),groups=new Map<string,Task[]>(),untouched:Task[]=[];
+  const ordered=[...snapshot.tasks].sort((a,b)=>String(a.first_seen||'').localeCompare(String(b.first_seen||''))||a.id.localeCompare(b.id));
+  for(const task of ordered){
+    if(!ids.has(task.child_id)){untouched.push(task);continue;}
+    const key=JSON.stringify([task.subject,task.lesson_date,task.lesson_hour]);
+    const group=groups.get(key)||[];group.push(task);groups.set(key,group);
+  }
+  for(const group of groups.values()){
+    const original=group[0],latest=[...group].sort((a,b)=>String(b.last_seen||'').localeCompare(String(a.last_seen||''))||String(b.first_seen||'').localeCompare(String(a.first_seen||''))||b.id.localeCompare(a.id))[0];
+    const signature=fileSignature(latest.files),matching=group.filter(t=>t.body===latest.body&&fileSignature(t.files)===signature);
+    const completed=matching.filter(t=>t.done),done=completed.length>0;
+    const changed=original.body!==latest.body||fileSignature(original.files)!==signature;
+    const completedAt=completed.map(t=>String(t.completed_at||'')).sort().pop()||null;
+    untouched.push({...latest,id:original.id,child_id:canonical,first_seen:original.first_seen,done,completed_at:completedAt,
+      revised:done?0:changed?1:Math.max(...matching.map(t=>Number(t.revised)||0))});
+  }
+  return {...snapshot,tasks:untouched.sort((a,b)=>String(b.lesson_date).localeCompare(String(a.lesson_date))||String(a.subject).localeCompare(String(b.subject)))};
+}
 export function validateSnapshot(input:any):Snapshot {
   if (!input || !Array.isArray(input.tasks) || input.tasks.length>1000 || !input.sync || typeof input.sync!=='object') throw new Error('Invalid snapshot');
   if (input.sync.last_success && (typeof input.sync.last_success!=='string' || !Number.isFinite(Date.parse(input.sync.last_success)))) throw new Error('Invalid date');

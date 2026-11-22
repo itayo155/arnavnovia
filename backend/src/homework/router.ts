@@ -1,6 +1,6 @@
 import express, {Request,Response,NextFunction} from 'express';
 import path from 'path';
-import {Access,HomeworkStore,Persistence} from './core';
+import {Access,HomeworkStore,Persistence,reconcileStudent} from './core';
 
 export function homeworkRouter(config:{username:string;salt:string;verifier:string},persistence:Persistence) {
   const router=express.Router(), access=new Access(config), store=new HomeworkStore(persistence);
@@ -19,7 +19,7 @@ export function homeworkRouter(config:{username:string;salt:string;verifier:stri
       ...(error?.name==='HomeworkStorageError'?{code:'STORAGE_UNAVAILABLE',step:error.step,database_code:error.databaseCode,database_host:error.databaseHost}:{})}));
   };
   router.get('/api/tasks',route(async(_req,res)=>{res.json(await store.snapshot(res.locals.homeworkKey));}));
-  router.post(['/api/complete','/api/ingest'],(req,res,next)=>{
+  router.post(['/api/complete','/api/ingest','/api/reconcile-student'],(req,res,next)=>{
     if (!req.is('application/json')) {res.status(415).json({error:'Expected JSON'});return;}
     const origin=req.get('Origin');
     if (origin && !['https://arnavnovia.com','https://api.arnavnovia.com','http://127.0.0.1:8765'].includes(origin)) {
@@ -37,6 +37,14 @@ export function homeworkRouter(config:{username:string;salt:string;verifier:stri
     }
     const ok=await store.complete(res.locals.homeworkKey,req.body.id,req.body.done);
     res.status(ok?200:404).json({ok});
+  }));
+  router.post('/api/reconcile-student',route(async(req,res)=>{
+    const {canonical,aliases}=req.body||{};
+    if(typeof canonical!=='string'||!/^[a-f0-9]{64}$/.test(canonical)||!Array.isArray(aliases)||aliases.length>10||aliases.some(x=>typeof x!=='string'||!/^[a-f0-9]{64}$/.test(x))){
+      res.status(400).json({error:'Expected verified student aliases'});return;
+    }
+    const snapshot=await store.change(res.locals.homeworkKey,value=>reconcileStudent(value,canonical,aliases));
+    res.json({ok:true,tasks:snapshot.tasks.length});
   }));
   router.get('/export.csv',route(async(_req,res)=>{
     const snapshot=await store.snapshot(res.locals.homeworkKey);

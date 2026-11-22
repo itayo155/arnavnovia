@@ -2,7 +2,7 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const {randomBytes,scryptSync,createHash}=require('node:crypto');
 const express=require('express');
-const {Access,HomeworkStore,seal,unseal}=require('../dist/homework/core');
+const {Access,HomeworkStore,seal,unseal,reconcileStudent}=require('../dist/homework/core');
 const {homeworkRouter}=require('../dist/homework/router');
 
 const salt=randomBytes(16),password='fake-test-password',key=scryptSync(password,salt,32);
@@ -47,6 +47,20 @@ test('optimistic persistence preserves concurrent completion and source updates'
  const snapshot=await store.snapshot(key);assert.equal(snapshot.tasks.length,2);assert.equal(snapshot.tasks.find(t=>t.id==='a'.repeat(24)).done,true);
  const older=fixture();older.sync.last_success='2026-11-17T00:00:00Z';older.tasks[0].body='OLD';
  await store.ingest(key,older);assert.equal((await store.snapshot(key)).tasks[0].body,'FAKE PRIVATE HOMEWORK');
+});
+
+test('verified provider aliases collapse duplicates and preserve checkmarks without merging other students',()=>{
+ const original={...fixture().tasks[0],child_id:'original',done:true,completed_at:'2026-11-18T12:00:00Z',first_seen:'2026-11-18T10:00:00Z',last_seen:'2026-11-18T10:00:00Z'};
+ const duplicate={...original,id:'b'.repeat(24),child_id:'rotated',done:false,completed_at:null,first_seen:'2026-11-22T10:00:00Z',last_seen:'2026-11-22T10:00:00Z',files:[{fileName:'sheet.pdf',fileUrl:'https://example.test/refreshed'}]};
+ const other={...original,id:'c'.repeat(24),child_id:'different-student'};
+ const result=reconcileStudent({tasks:[original,duplicate,other],sync:{}},'original',['rotated']);
+ assert.equal(result.tasks.length,2);assert.equal(result.tasks.find(t=>t.id===original.id).done,true);
+ assert.ok(result.tasks.some(t=>t.child_id==='different-student'));
+ assert.equal(result.tasks.find(t=>t.id===original.id).files[0].fileUrl,'https://example.test/refreshed');
+ assert.deepEqual(reconcileStudent(result,'original',['rotated']),result);
+ duplicate.body='FAKE EDITED ASSIGNMENT';
+ const edited=reconcileStudent({tasks:[original,duplicate],sync:{}},'original',['rotated']).tasks[0];
+ assert.equal(edited.done,false);assert.equal(edited.revised,1);assert.equal(edited.id,original.id);
 });
 
 test('all hosted resources require Basic auth; source updates and completion work through HTTP',async()=>{
