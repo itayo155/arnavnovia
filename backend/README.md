@@ -1,5 +1,11 @@
 # Token Transfer Backend
 
+## Retired token app: database lockdown
+
+The token-transfer app is unused. Migration `src/db/migrations/03_lock_unused_token_app.sql`, applied on 24 November 2026, enables RLS on `users` and `transactions`, revokes public and signed-in API table privileges, and installs restrictive deny policies. Execution of the legacy `transfer_points` and `transfer_tokens` RPCs is also revoked. Existing rows are retained.
+
+The homework app's separate encrypted table and proof-checked functions retain their access. Reviving the token app requires a new, deliberate authorization policy; its former broad database access is intentionally disabled.
+
 This is the backend for the Token Transfer application. It provides APIs for user authentication and token transfers between users.
 
 ## Technologies Used
